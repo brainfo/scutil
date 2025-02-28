@@ -10,7 +10,6 @@ import anndata
 import re
 import seaborn as sns
 import matplotlib
-import tables
 import scipy.sparse as sp
 from typing import Dict
 import logging
@@ -296,9 +295,21 @@ def cell_cycle_analysis(cell_cycle_genes,adata,name):
     scdata_cc_genes = adata[:, cell_cycle_genes]
     sc.tl.pca(scdata_cc_genes)
     sc.pl.pca_scatter(scdata_cc_genes, color='phase',save=f'{name}_cell_cycle.pdf')
+## work on adata.X
+def pca(adata, name, n_comps, pearson):
+    if pearson:
+        sc.experimental.pp.recipe_pearson_residuals(
+        adata, n_top_genes=2000, batch_key='sample', n_comps=n_comps)
+    else:
+        sc.pp.pca(adata, n_comps=n_comps, use_highly_variable=True, svd_solver='arpack')
+    pca = adata.obsm['X_pca']
+    pca = pca/pca[:,0].std()
+    ## is basedir necessary?
+    np.save(f'data/{name}_pca{n_comps}.npy', pca)
+    return adata
 
-def tsne_and_umap(adata, name, n_comps, key=None):
-    sc.pp.pca(adata, n_comps=n_comps, use_highly_variable=True, svd_solver='arpack')
+def tsne_and_umap(adata, name, n_comps, pearson, key=None):
+    adata = pca(adata, name, n_comps, pearson)
     sc.pl.pca_overview(adata, save=f'{name}_clean_pca_overview.pdf')
     sc.pl.pca_variance_ratio(adata, save=f'{name}_npc.pdf')
     sc.pp.neighbors(adata, n_pcs =n_comps)
