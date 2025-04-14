@@ -1,0 +1,13 @@
+{
+    "project_name": "test",
+    "workdir": "..",
+    "h5dir": "tests/_data",
+    "filter_params": {
+        "min_counts": 400,
+        "min_genes": 200,
+        "max_genes": 5000,
+        "percent_mt": 5,
+        "percent": 3,
+        "filter_mt": true
+    }
+}
