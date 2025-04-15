@@ -8,7 +8,7 @@ This is for scRNAseq data analysis where
 
 ## usage
 
-starting from multiple samples from cellranger processing 10x reads:
+starting with cellranger output matrices from multiple samples:
 
 ```{py}
 import scutil as su
