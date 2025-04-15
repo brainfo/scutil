@@ -27,7 +27,7 @@ doublet_dict = defaultdict()
 for sample_name in raw.obs['sample'].unique():
     sample = raw[raw.obs['sample'] == sample_name].copy()
     sc.external.pp.scrublet(sample, random_state=0, threshold=0.1)
-    su.doublet_plot(workdir, sample_name, sample)
+    su.doublet_plot("tests/", sample_name, sample)
     doublet_dict[sample_name] = sample
 
 no_doublet_dict = defaultdict()
