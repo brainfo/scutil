@@ -8,7 +8,7 @@ This is for scRNAseq data analysis where
 
 ## usage
 
-starting with cellranger output matrices from multiple samples:
+- starting with cellranger output matrices from multiple samples:
 
 ```{py}
 import scutil as su
@@ -45,7 +45,7 @@ ad_all = ad.concat(list(filter_dict.values()), label='sample', keys=list(filter_
 ad_all.write_h5ad(f"tests/_data/output/{name}_filter.h5ad", compression='gzip')
 ```
 
-for qc and low dim visualization, starting from preprocessed h5ad file, as from the previous step ⬆,
+- for qc and low dim visualization, starting from preprocessed h5ad file, as from the previous step ⬆,
 
 ```{py}
 import scutil as su
@@ -58,7 +58,7 @@ with open('tests/config/params.json', 'r') as f:
     config = json.load(f)
 
 name = config['project_name']
-adata = sc.read_h5ad(f"tests/_data/{name}.h5ad")
+adata = sc.read_h5ad(f"tests/_data/{name}_filter.h5ad")
 su.filter_adata(adata, **config['filter_params'])
 su.norm_hvg(adata, name, n_top_genes=1000)
 su.pca(adata, name, 30, pearson=False)
