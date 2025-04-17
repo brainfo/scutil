@@ -6,11 +6,11 @@ pip install scutil
 
 This is for scRNAseq data analysis where
 
-## usage
+## Usage
 
 - starting with cellranger output matrices from multiple samples:
 
-```{py}
+```python
 import scutil as su
 import scanpy as sc
 import json
@@ -47,7 +47,7 @@ ad_all.write_h5ad(f"tests/_data/output/{name}_filter.h5ad", compression='gzip')
 
 - for qc and low dim visualization, starting from preprocessed h5ad file, as from the previous step ⬆,
 
-```{py}
+```python
 import scutil as su
 import scanpy as sc
 import json
