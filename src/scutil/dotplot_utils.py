@@ -1,30 +1,32 @@
 """
 dotplot_utils.py
-----------------
-Utility helpers for Scanpy **dot‑plots** that
+=================
+Helpers for **Scanpy** dot‑plots where:
 
-* colour dots with **row‑centred z‑scores** (mean‑subtracted, σ‑scaled),
-* size dots by **fraction of cells expressed** (values > 0),
-* optionally clip extreme z‑scores via ``max_value``,
-* optionally move gene labels (y‑axis) to the right‑hand side,
-* let you pick *any* expression source: a
-  named ``layer``, or ``adata.X``.
+* **Colour** = row‑centred *z‑score* of mean log‑normalised expression.
+* **Size**   = fraction of cells with expression > 0 in each group.
 
-The main entry point is :pyfunc:`custom_deg_dotplot`, which returns the
-:class:`scanpy.pl.DotPlot` object so you can style it further or save it.
+Key features
+------------
+* Works with Scanpy ≥ 1.8 and 1.10 regardless of where
+  ``sc.get.aggregate`` stores statistics (``.X`` *or* ``.layers``).
+* Accepts **``layer`` / ``use_raw`` / ``adata.X``** just like Scanpy plotting
+  functions.
+* Optional ``max_value`` clips extreme z‑scores (*à la* ``sc.pp.scale``).
+* One‑liner flag to move gene labels to the right.
+* Returns the **DotPlot** object so you can chain more styling.
 """
 from __future__ import annotations
 
 from typing import Sequence, Mapping, Any
+import warnings
 
 import numpy as np
 import pandas as pd
 import scanpy as sc
 from scanpy.pl import DotPlot
 
-__all__ = [
-    "custom_deg_dotplot",
-]
+__all__ = ["custom_deg_dotplot"]
 
 # -----------------------------------------------------------------------------
 # internal helpers
@@ -36,50 +38,94 @@ def _aggregate_expression(
     groupby: str,
     *,
     layer: str | None = None,
+    use_raw: bool = False,
 ) -> tuple[pd.DataFrame, np.ndarray]:
-    """Aggregate per‑group *mean expression* and *fraction expressed*.
+    """Return mean expression & fraction‑expressed for *genes × groups*.
 
-    The implementation follows Scanpy ≥ 1.10 conventions:
-    * ``sc.get.aggregate`` always puts the **first** function’s result in
-      ``.X``.
-    * Additional statistics are stored in ``.layers`` with the function
-      name as key.
-
-    Returns
-    -------
-    mean_df
-        DataFrame (groups × genes) with mean expression.
-    pct_matrix
-        ``np.ndarray`` with fractions in the range 0‒1.
+    The function is resilient to the Scanpy version:
+    * Scanpy ≥ 1.10 → the **first** function result is in ``.X``; extras in
+      ``.layers`` keyed by function name.
+    * Scanpy ≤ 1.9  → every statistic lives in ``.layers``.
     """
-    agg = sc.get.aggregate(
-        adata[:, genes],
-        by=groupby,
-        layer=layer,
-        func=["mean", "count_nonzero"],
-    )
 
-    # --- Scanpy stores the first statistic in .X ---------------------------
-    mean_arr = agg.X.copy()
+    # --- gather both statistics in one call if the version supports it ------
+    try:
+        agg = sc.get.aggregate(
+            adata[:, genes],
+            by=groupby,
+            layer=layer,
+            use_raw=use_raw,
+            func=["mean", "count_nonzero"],
+        )
+    except TypeError:  # Scanpy < 1.9 didn’t accept list for func
+        agg_mean = sc.get.aggregate(
+            adata[:, genes],
+            by=groupby,
+            layer=layer,
+            use_raw=use_raw,
+            func="mean",
+        )
+        agg_cnt = sc.get.aggregate(
+            adata[:, genes],
+            by=groupby,
+            layer=layer,
+            use_raw=use_raw,
+            func="count_nonzero",
+        )
 
-    # count_nonzero is in a layer when requested together with mean
+        # unify index/columns order just in case
+        agg_cnt = agg_cnt[agg_mean.obs_names, :][:, agg_mean.var_names]
+
+        mean_arr = agg_mean.X if agg_mean.X is not None else agg_mean.layers["mean"]
+        cnt_arr = (
+            agg_cnt.layers["count_nonzero"]
+            if "count_nonzero" in agg_cnt.layers
+            else agg_cnt.X
+        )
+        n_obs = agg_mean.obs["n_obs"].to_numpy()[:, None]
+        mean_df = pd.DataFrame(mean_arr, index=agg_mean.obs_names, columns=agg_mean.var_names)
+        pct = cnt_arr / n_obs
+        return mean_df, pct
+
+    # ---------------- Scanpy ≥ 1.10 path ------------------------------------
+    if agg.X is not None:
+        mean_arr = agg.X
+    elif "mean" in agg.layers:
+        mean_arr = agg.layers["mean"]
+    else:
+        raise RuntimeError("Could not locate mean expression in aggregate result.")
+
     if "count_nonzero" in agg.layers:
-        count_nz = agg.layers["count_nonzero"].copy()
-    else:  # fallback: sc<1.10 or single‑stat call
-        count_nz = agg.X.copy()
+        cnt_arr = agg.layers["count_nonzero"]
+    else:
+        warnings.warn(
+            "count_nonzero not found in aggregate result; falling back to raw computation.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        # compute manually (rare path; may be memory‑heavy for huge matrices)
+        mat = (adata[:, genes].layers[layer] if layer else adata[:, genes].X) if not use_raw else adata[:, genes].raw.X  # type: ignore
+        cnt_arr = (
+            sc.get.aggregate(
+                adata[:, genes].copy(),
+                by=groupby,
+                func="count_nonzero",
+                layer=layer,
+                use_raw=use_raw,
+            ).X
+        )
 
-    n_obs = agg.obs["n_obs"].to_numpy()[:, None]  # (groups, 1)
-
+    n_obs = agg.obs["n_obs"].to_numpy()[:, None]
     mean_df = pd.DataFrame(mean_arr, index=agg.obs_names, columns=agg.var_names)
-    pct_matrix = count_nz / n_obs  # broadcast div → fraction 0‒1
-    return mean_df, pct_matrix
+    pct = cnt_arr / n_obs
+    return mean_df, pct
 
 
 def _zscore(df: pd.DataFrame, max_value: float | None = None) -> pd.DataFrame:
-    """Row‑centre + variance‑scale *in a copy*; clip to ``±max_value`` if set."""
+    """Return *row* centred and variance‑scaled copy, with optional clipping."""
     z = (df - df.mean(0)) / df.std(0).replace(0, np.nan)
     if max_value is not None:
-        z = z.clip(lower=-max_value, upper=max_value)
+        z = z.clip(-max_value, max_value)
     return z
 
 # -----------------------------------------------------------------------------
@@ -92,49 +138,43 @@ def custom_deg_dotplot(
     groupby: str,
     *,
     layer: str | None = "log_norm",
+    use_raw: bool = False,
     max_value: float | None = None,
     right_labels: bool = False,
     cmap: str | Any = "RdBu_r",
-    size_title: str = "Fraction of cells (%)",
-    colorbar_title: str = "Row Z-score (log-norm)",
+    size_title: str | None = "Fraction of cells (%)",
+    colorbar_title: str | None = "Row Z-score (log-norm)",
     dotplot_kwargs: Mapping[str, Any] | None = None,
 ) -> DotPlot:
-    """Create a DotPlot whose *colour* shows z‑scores and *size* shows % expressed.
+    """Create a DEG dot‑plot: Z‑score colours, %‑expressed sizes.
 
     Parameters
     ----------
-    adata
-        Annotated data matrix.
-    genes
-        Ordered list of gene identifiers (must be in ``adata.var_names``).
-    groupby
-        Column in ``adata.obs`` used to group cells.
-    layer
-        Expression source:
-        * ``layer=None``   → ``adata.X``.
-        * ``layer='name'`` → ``adata.layers['name']``.
+    adata, genes, groupby
+        Standard Scanpy semantics.
+    layer, use_raw
+        Expression source selection.
     max_value
-        Clip absolute z‑score to this value (mimics ``sc.pp.scale(max_value)``).
+        Clip |z| to this value (helps avoid a few extreme dots dominating the
+        colour bar). ``None`` → no clipping.
     right_labels
-        If *True*, show gene names on the right.
+        ``True`` → move gene names (y‑ticks) to the right of the plot.
     cmap
-        Any Matplotlib colormap or a name understood by Matplotlib.
+        A Matplotlib colormap *object* or *name*. E.g. build one via
+        ``LinearSegmentedColormap.from_list`` and pass it.
+    size_title, colorbar_title
+        Legends; set to ``None`` to keep Scanpy defaults.
     dotplot_kwargs
-        Passed verbatim to :class:`scanpy.pl.DotPlot` (e.g. ``dendrogram=True``).
-
-    Returns
-    -------
-    DotPlot
-        The configured DotPlot object; call ``.show()`` or ``.savefig()``.
+        Forwarded to :class:`scanpy.pl.DotPlot`, e.g. ``dendrogram=True``.
     """
     dotplot_kwargs = {} if dotplot_kwargs is None else dict(dotplot_kwargs)
 
-    # 1  aggregate statistics
+    # 1  aggregate stats
     mean_df, pct = _aggregate_expression(
-        adata, genes, groupby, layer=layer
+        adata, genes, groupby, layer=layer, use_raw=use_raw
     )
 
-    # 2  compute row‑centred z‑scores
+    # 2  z‑scores
     z_df = _zscore(mean_df, max_value=max_value)
 
     # 3  build DotPlot
@@ -147,46 +187,48 @@ def custom_deg_dotplot(
         **dotplot_kwargs,
     )
 
-    # legends & style
-    dp.legend(colorbar_title=colorbar_title, size_title=size_title)
     dp.style(cmap=cmap, edgecolor="face")
+    dp.legend(colorbar_title=colorbar_title, size_title=size_title)
 
-    # optional y‑label move
+    # 4  y‑tick repositioning
     if right_labels:
-        main_ax = dp.get_axes()["mainplot_ax"]
-        main_ax.yaxis.tick_right()
-        main_ax.tick_params(axis="y", labelright=True, labelleft=False, pad=2)
-        main_ax.figure.subplots_adjust(right=0.82)
+        ax = dp.get_axes()["mainplot_ax"]
+        ax.yaxis.tick_right()
+        ax.tick_params(axis="y", labelright=True, labelleft=False, pad=2)
+        ax.figure.subplots_adjust(right=0.82)
 
     return dp
 
-
 # -----------------------------------------------------------------------------
-# CLI demo when the module is executed directly
+# CLI demo (run `python dotplot_utils.py my_data.h5ad` to test)
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
     import argparse
+    from matplotlib.colors import LinearSegmentedColormap
 
     parser = argparse.ArgumentParser(description="Demo custom DEG dot‑plot.")
-    parser.add_argument("adata_file", help="input .h5ad with log_norm layer & groups")
-    parser.add_argument("--groupby", default="group3", help="obs column with groups")
-    parser.add_argument("--genes", nargs="*", help="genes to plot; default = top‑20")
-    parser.add_argument("--raw", action="store_true", help="use adata.raw as matrix")
-    parser.add_argument("--out", default="deg_dotplot.pdf", help="output figure file")
+    parser.add_argument("adata", help="Annotated .h5ad file with log_norm layer")
+    parser.add_argument("--groupby", default="group3", help="obs column")
+    parser.add_argument("--genes", nargs="*", help="genes to plot; default top‑20")
+    parser.add_argument("--raw", action="store_true", help="use adata.raw")
+    parser.add_argument("--out", default="deg_dotplot.pdf", help="output file")
     args = parser.parse_args()
 
-    ad = sc.read_h5ad(args.adata_file)
+    ad = sc.read_h5ad(args.adata)
+    gene_list = args.genes or list(ad.uns["rank_genes_groups"]["names"][0][:20])
 
-    # default gene list = first 20 names from rank_genes_groups
-    genes = args.genes or list(ad.uns["rank_genes_groups"]["names"][0][:20])
+    # custom teal‑white‑red palette if you like
+    cmap = LinearSegmentedColormap.from_list("twr", ["#468189", "white", "#FF0022"])
 
-    dp_obj = custom_deg_dotplot(
+    dp = custom_deg_dotplot(
         ad,
-        genes=genes,
+        genes=gene_list,
         groupby=args.groupby,
+        use_raw=args.raw,
         layer=None if args.raw else "log_norm",
         max_value=3,
         right_labels=True,
+        cmap=cmap,
     )
-    dp_obj.show()
-    dp_obj.savefig(args.out)
+    dp.show()
+    dp.savefig(args.out)
