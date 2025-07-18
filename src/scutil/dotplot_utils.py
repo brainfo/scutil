@@ -9,6 +9,8 @@ Helpers for **Scanpy** DEG dot‑plots where:
 Key points
 ----------
 * Works with Scanpy 1.8 → 1.10 (handles both aggregate APIs).
+* **No `use_raw` parameter.**  Pass `layer="raw"` if you want to read from
+  ``adata.raw``.  Otherwise set ``layer=None`` (→ ``adata.X``) or a layer name.
 * Optional ``max_value`` clips extreme z‑scores.
 * ``right_labels=True`` moves gene labels to the right.
 * Returns the **DotPlot** object for further styling or saving.
@@ -45,43 +47,95 @@ def _aggregate_expression(
     *,
     layer: str | None = None,
 ) -> tuple[pd.DataFrame, np.ndarray]:
-    """Compute mean expression & fraction‑expressed (0–1) for each group/ gene."""
+    """Return mean expression & fraction‑expressed per *group × gene*.
 
-    # try one call with both stats (Scanpy ≥1.9)
+    Parameters
+    ----------
+    adata
+        Full AnnData object.
+    genes
+        List/array of gene IDs **present in `adata.var_names`.**
+    groupby
+        `adata.obs` column.
+    layer
+        * ``None`` → use `adata.X`
+        * ``'raw'`` → use `adata.raw.to_adata().X`
+        * any other string → use `adata.layers[layer]`
+
+    The implementation never passes ``use_raw=`` to
+    :pyfunc:`scanpy.get.aggregate`, because older Scanpy versions don’t accept
+    that keyword.
+    """
+    # decide which AnnData object + layer to feed into sc.get.aggregate
+    if layer == "raw":
+        if adata.raw is None:
+            raise ValueError("layer='raw' requested but `adata.raw` is None")
+        src = adata.raw.to_adata()
+        layer_arg = None  # use src.X
+    else:
+        src = adata
+        layer_arg = layer  # can be None or str
+
+    # try multi‑stat call first (Scanpy ≥1.9 accepts list for func)
     try:
         agg = sc.get.aggregate(
-            adata[:, genes],
+            src[:, genes],
             by=groupby,
-            layer=layer,
+            layer=layer_arg,
             func=["mean", "count_nonzero"],
         )
-        multi = True
-    except TypeError:  # older Scanpy
-        multi = False
-
-    if multi:
         mean_arr = agg.X if agg.X is not None else agg.layers["mean"]
-        cnt_arr = agg.layers["count_nonzero"]
-        n_obs = (
+        cnt_arr  = agg.layers["count_nonzero"]
+        n_obs    = (
             agg.obs.get("n_obs").to_numpy()[:, None]
             if "n_obs" in agg.obs
-            else _group_sizes(adata, groupby, agg.obs_names)
+            else _group_sizes(src, groupby, agg.obs_names)
         )
-        mean_df = pd.DataFrame(mean_arr, index=agg.obs_names, columns=agg.var_names)
-        pct = cnt_arr / n_obs
-        return mean_df, pct
+    except Exception:  # fall back → two separate calls (works everywhere)
+        agg_mean = sc.get.aggregate(
+            src[:, genes],
+            by=groupby,
+            layer=layer_arg,
+            func="mean",
+        )
+        agg_cnt = sc.get.aggregate(
+            src[:, genes],
+            by=groupby,
+            layer=layer_arg,
+            func="count_nonzero",
+        )
+        agg_cnt = agg_cnt[agg_mean.obs_names, :][:, agg_mean.var_names]
+        mean_arr = agg_mean.X if agg_mean.X is not None else agg_mean.layers["mean"]
+        cnt_arr  = (
+            agg_cnt.layers["count_nonzero"]
+            if "count_nonzero" in agg_cnt.layers
+            else agg_cnt.X
+        )
+        n_obs = (
+            agg_mean.obs.get("n_obs").to_numpy()[:, None]
+            if "n_obs" in agg_mean.obs.columns
+            else _group_sizes(src, groupby, agg_mean.obs_names)
+        )
+
+    mean_df = pd.DataFrame(mean_arr, index=genes and None or None)  # placeholder
+    mean_df = pd.DataFrame(mean_arr, index=agg_mean.obs_names if 'agg_mean' in locals() else agg.obs_names, columns=agg_mean.var_names if 'agg_mean' in locals() else agg.var_names)
+
+    pct_matrix = cnt_arr / n_obs
+    return mean_df, pct_matrix
 
     # fallback: two calls for mean & count_nonzero
     agg_mean = sc.get.aggregate(
         adata[:, genes],
         by=groupby,
-        layer=layer,
+        layer=layer_arg,
+        use_raw=use_raw,
         func="mean",
     )
     agg_cnt = sc.get.aggregate(
         adata[:, genes],
         by=groupby,
-        layer=layer,
+        layer=layer_arg,
+        use_raw=use_raw,
         func="count_nonzero",
     )
 
