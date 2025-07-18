@@ -10,7 +10,7 @@ Key features
 ------------
 * Works with Scanpy ≥ 1.8 and 1.10 regardless of where
   ``sc.get.aggregate`` stores statistics (``.X`` *or* ``.layers``).
-* Accepts **``layer`` / ``use_raw`` / ``adata.X``** just like Scanpy plotting
+* Accepts **``layer`` / ``adata.X``** just like Scanpy plotting
   functions.
 * Optional ``max_value`` clips extreme z‑scores (*à la* ``sc.pp.scale``).
 * One‑liner flag to move gene labels to the right.
@@ -38,7 +38,6 @@ def _aggregate_expression(
     groupby: str,
     *,
     layer: str | None = None,
-    use_raw: bool = False,
 ) -> tuple[pd.DataFrame, np.ndarray]:
     """Return mean expression & fraction‑expressed for *genes × groups*.
 
@@ -54,7 +53,6 @@ def _aggregate_expression(
             adata[:, genes],
             by=groupby,
             layer=layer,
-            use_raw=use_raw,
             func=["mean", "count_nonzero"],
         )
     except TypeError:  # Scanpy < 1.9 didn’t accept list for func
@@ -62,14 +60,12 @@ def _aggregate_expression(
             adata[:, genes],
             by=groupby,
             layer=layer,
-            use_raw=use_raw,
             func="mean",
         )
         agg_cnt = sc.get.aggregate(
             adata[:, genes],
             by=groupby,
             layer=layer,
-            use_raw=use_raw,
             func="count_nonzero",
         )
 
@@ -104,14 +100,13 @@ def _aggregate_expression(
             stacklevel=2,
         )
         # compute manually (rare path; may be memory‑heavy for huge matrices)
-        mat = (adata[:, genes].layers[layer] if layer else adata[:, genes].X) if not use_raw else adata[:, genes].raw.X  # type: ignore
+        mat = (adata[:, genes].layers[layer] if layer else adata[:, genes].X)
         cnt_arr = (
             sc.get.aggregate(
                 adata[:, genes].copy(),
                 by=groupby,
                 func="count_nonzero",
-                layer=layer,
-                use_raw=use_raw,
+                layer=layer
             ).X
         )
 
@@ -138,7 +133,6 @@ def custom_deg_dotplot(
     groupby: str,
     *,
     layer: str | None = "log_norm",
-    use_raw: bool = False,
     max_value: float | None = None,
     right_labels: bool = False,
     cmap: str | Any = "RdBu_r",
@@ -152,7 +146,7 @@ def custom_deg_dotplot(
     ----------
     adata, genes, groupby
         Standard Scanpy semantics.
-    layer, use_raw
+    layer
         Expression source selection.
     max_value
         Clip |z| to this value (helps avoid a few extreme dots dominating the
@@ -171,7 +165,7 @@ def custom_deg_dotplot(
 
     # 1  aggregate stats
     mean_df, pct = _aggregate_expression(
-        adata, genes, groupby, layer=layer, use_raw=use_raw
+        adata, genes, groupby, layer=layer
     )
 
     # 2  z‑scores
@@ -224,7 +218,6 @@ if __name__ == "__main__":
         ad,
         genes=gene_list,
         groupby=args.groupby,
-        use_raw=args.raw,
         layer=None if args.raw else "log_norm",
         max_value=3,
         right_labels=True,
