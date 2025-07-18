@@ -9,8 +9,6 @@ Helpers for **Scanpy** DEG dot‑plots where:
 Key points
 ----------
 * Works with Scanpy 1.8 → 1.10 (handles both aggregate APIs).
-* **No `use_raw` parameter.**  Pass `layer="raw"` if you want to read from
-  ``adata.raw``.  Otherwise set ``layer=None`` (→ ``adata.X``) or a layer name.
 * Optional ``max_value`` clips extreme z‑scores.
 * ``right_labels=True`` moves gene labels to the right.
 * Returns the **DotPlot** object for further styling or saving.
@@ -48,17 +46,13 @@ def _aggregate_expression(
     layer: str | None = None,
 ) -> tuple[pd.DataFrame, np.ndarray]:
     """Compute mean expression & fraction‑expressed (0–1) for each group/ gene."""
-    # interpret layer
-    use_raw = layer == "raw"
-    layer_arg = None if use_raw else layer
 
     # try one call with both stats (Scanpy ≥1.9)
     try:
         agg = sc.get.aggregate(
             adata[:, genes],
             by=groupby,
-            layer=layer_arg,
-            use_raw=use_raw,
+            layer=layer,
             func=["mean", "count_nonzero"],
         )
         multi = True
@@ -81,15 +75,13 @@ def _aggregate_expression(
     agg_mean = sc.get.aggregate(
         adata[:, genes],
         by=groupby,
-        layer=layer_arg,
-        use_raw=use_raw,
+        layer=layer,
         func="mean",
     )
     agg_cnt = sc.get.aggregate(
         adata[:, genes],
         by=groupby,
-        layer=layer_arg,
-        use_raw=use_raw,
+        layer=layer,
         func="count_nonzero",
     )
 
