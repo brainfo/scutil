@@ -1,7 +1,3 @@
-## these are function tools that supplement scanpy ##
-########### or useful when you use scanpy ###########
-######### edited on 2022-02-09 by Ruby Jiang ########
-
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -15,16 +11,8 @@ from typing import Dict
 import logging
 import os
 import zarr
-from anndata.experimental import read_dispatched, write_dispatched, read_elem
+from anndata.experimental import read_dispatched, read_elem
 from collections import defaultdict
-
-custom_params = {"axes.spines.right": False, "axes.spines.top": False}
-sns.set_theme(style="ticks", rc=custom_params)
-from matplotlib import rcParams
-rcParams['font.family'] = 'sans-serif'
-matplotlib.rcParams['font.sans-serif'] = ['Arial']
-matplotlib.rcParams['pdf.fonttype'] = 42
-matplotlib.rcParams['ps.fonttype'] = 42
 
 def anndata_from_h5(file: str,
                     analyzed_barcodes_only: bool = True) -> 'anndata.AnnData':
@@ -300,7 +288,7 @@ def cell_cycle_analysis(cell_cycle_genes,adata,name):
     sc.tl.pca(scdata_cc_genes)
     sc.pl.pca_scatter(scdata_cc_genes, color='phase',save=f'{name}_cell_cycle.pdf')
 ## work on adata.X
-def pca(adata, name, n_comps, pearson):
+def pca(adata, name, n_comps, pearson, hvg=True):
     if pearson:
         sc.experimental.pp.recipe_pearson_residuals(
         adata, n_top_genes=2000, batch_key='sample', n_comps=n_comps)
@@ -332,7 +320,6 @@ def find_markers(adata, methods, cluster, reference, celltype):
             df = sc.get.rank_genes_groups_df(adata, group=None, pval_cutoff=0.05, log2fc_min =1, key = method)
         df.to_csv(f'output/DEGs/rank_genes/top_markers_{celltype}_{method}_{cluster}.tsv', sep='\t', quoting=3, header=False, index=False)
         sc.pl.rank_genes_groups(adata, n_genes=25, sharey=False, key = method, save=f'{celltype}_{method}_{cluster}_genes.pdf')
-
 
 def rgba_hex_colors_to_rgb(adata):
     for key in adata.uns.keys():
