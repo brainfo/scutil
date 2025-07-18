@@ -7,7 +7,7 @@ Utility helpers for Scanpy **dot‑plots** that
 * size dots by **fraction of cells expressed** (values > 0),
 * optionally clip extreme z‑scores via ``max_value``,
 * optionally move gene labels (y‑axis) to the right‑hand side,
-* let you pick *any* expression source: ``use_raw=True`` (``adata.raw``), a
+* let you pick *any* expression source: a
   named ``layer``, or ``adata.X``.
 
 The main entry point is :pyfunc:`custom_deg_dotplot`, which returns the
@@ -36,7 +36,6 @@ def _aggregate_expression(
     groupby: str,
     *,
     layer: str | None = None,
-    use_raw: bool = False,
 ) -> tuple[pd.DataFrame, np.ndarray]:
     """Aggregate per‑group *mean expression* and *fraction expressed*.
 
@@ -57,7 +56,6 @@ def _aggregate_expression(
         adata[:, genes],
         by=groupby,
         layer=layer,
-        use_raw=use_raw,
         func=["mean", "count_nonzero"],
     )
 
@@ -94,7 +92,6 @@ def custom_deg_dotplot(
     groupby: str,
     *,
     layer: str | None = "log_norm",
-    use_raw: bool = False,
     max_value: float | None = None,
     right_labels: bool = False,
     cmap: str | Any = "RdBu_r",
@@ -112,9 +109,8 @@ def custom_deg_dotplot(
         Ordered list of gene identifiers (must be in ``adata.var_names``).
     groupby
         Column in ``adata.obs`` used to group cells.
-    layer, use_raw
+    layer
         Expression source:
-        * ``use_raw=True`` → ``adata.raw``; ``layer`` ignored.
         * ``layer=None``   → ``adata.X``.
         * ``layer='name'`` → ``adata.layers['name']``.
     max_value
@@ -135,7 +131,7 @@ def custom_deg_dotplot(
 
     # 1  aggregate statistics
     mean_df, pct = _aggregate_expression(
-        adata, genes, groupby, layer=layer, use_raw=use_raw
+        adata, genes, groupby, layer=layer
     )
 
     # 2  compute row‑centred z‑scores
@@ -189,7 +185,6 @@ if __name__ == "__main__":
         genes=genes,
         groupby=args.groupby,
         layer=None if args.raw else "log_norm",
-        use_raw=args.raw,
         max_value=3,
         right_labels=True,
     )
