@@ -100,20 +100,19 @@ def custom_deg_dotplot(
         ax.figure.subplots_adjust(right=0.82)
 
     if swap_axes:
-        color_df = dp.dot_color_df.T if dp.dot_color_df is not None else None
-        size_df = dp.dot_size_df.T if dp.dot_size_df is not None else None
-        dp = DotPlot(adata, var_names=dp.groupby_names, groupby=dp.var_names,
-                     dot_color_df=color_df, dot_size_df=size_df, **(dotplot_kwargs or {}))
-        dp.style(cmap=cmap)
-        dp.legend(colorbar_title=colorbar_title, size_title=size_title)
+        import sys
+        current_module = sys.modules[__name__]
+        dp = current_module.swap_axes(dp)
 
     return dp
 
 
 def swap_axes(dotplot: DotPlot) -> DotPlot:
     """Swap x and y axes of a DotPlot by transposing the underlying data."""
+    # Get the group categories from the original groupby column
+    group_cats = list(dotplot.adata.obs[dotplot.groupby].cat.categories)
     return DotPlot(
-        dotplot.adata, var_names=dotplot.groupby_names, groupby=dotplot.var_names,
+        dotplot.adata, var_names=group_cats, groupby=dotplot.var_names[0],
         dot_color_df=dotplot.dot_color_df.T, dot_size_df=dotplot.dot_size_df.T, **dotplot.kwds
     )
 
