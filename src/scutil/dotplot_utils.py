@@ -92,9 +92,13 @@ def custom_deg_dotplot(
     if swap_axes:
         z_df = z_df.T
         pct_df = pct_df.T
-
-    dp = DotPlot(adata, var_names=genes, groupby=groupby, 
-                 dot_color_df=z_df, dot_size_df=pct_df, **(dotplot_kwargs or {}))
+        # When swapping, group categories become var_names and we need a dummy groupby
+        group_cats = list(adata.obs[groupby].cat.categories)
+        dp = DotPlot(adata, var_names=group_cats, groupby=genes[0], 
+                     dot_color_df=z_df, dot_size_df=pct_df, **(dotplot_kwargs or {}))
+    else:
+        dp = DotPlot(adata, var_names=genes, groupby=groupby, 
+                     dot_color_df=z_df, dot_size_df=pct_df, **(dotplot_kwargs or {}))
     
     # Set the swapped state for consistent handling
     dp.are_axes_swapped = swap_axes
