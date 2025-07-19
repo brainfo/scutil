@@ -79,6 +79,8 @@ def custom_deg_dotplot(
         z_df, pct_df = z_df.T, pct_df.T
         names = names[::-1]
     z_df, pct_df = z_df.reset_index(names=names[1]), pct_df.reset_index(names=names[1])
+    print(z_df, pct_df) ## where are genes
+    print(names[0], [n for n in z_df.columns if n != names[1]])
     z_l, pct_l = pd.melt(z_df, value_vars=[n for n in z_df.columns if n != names[1]], var_name=names[0], value_name="z-score"), pd.melt(pct_df, value_vars=[n for n in z_df.columns if n != names[1]], var_name=names[0], value_name="fraction")
     # f, ax = plt.subplots(figsize=figsize)
     # plt.scatter(z_l[z_names[0]], z_l[z_names[1]], s=pct_names[1], c=)
