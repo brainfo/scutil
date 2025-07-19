@@ -110,10 +110,10 @@ def custom_deg_dotplot(
 def swap_axes(dotplot: DotPlot) -> DotPlot:
     """Swap x and y axes of a DotPlot by transposing the underlying data."""
     # Get the group categories from the original groupby column
-    group_cats = list(dotplot.adata.obs[dotplot.groupby].cat.categories)
+    group_cats = list(dotplot.adata.obs[dotplot._groupby].cat.categories)
     return DotPlot(
-        dotplot.adata, var_names=group_cats, groupby=dotplot.var_names[0],
-        dot_color_df=dotplot.dot_color_df.T, dot_size_df=dotplot.dot_size_df.T, **dotplot.kwds
+        dotplot.adata, var_names=group_cats, groupby=dotplot._var_names[0],
+        dot_color_df=dotplot.dot_color_df.T, dot_size_df=dotplot.dot_size_df.T
     )
 
 ###############################################################################
