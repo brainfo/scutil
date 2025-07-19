@@ -76,7 +76,7 @@ def custom_deg_dotplot(
     z_df = _zscore(mean_df, max_value)
     if swap_axes:
         z_df, pct_df = z_df.T, pct_df.T
-    z_l, pct_l = pd.melt(z_df), pd.wide_to_long(pct_df)
+    z_l, pct_l = pd.melt(z_df), pd.melt(pct_df)
     # f, ax = plt.subplots(figsize=figsize)
     # plt.scatter()
     return z_l, pct_l
