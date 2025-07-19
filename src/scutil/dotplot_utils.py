@@ -66,7 +66,8 @@ def custom_deg_dotplot(
     layer: str | None = "log_norm",
     max_value: float | None = None,
     cmap: str | Any = "RdBu_r",
-    swap_axes: bool = False
+    swap_axes: bool = False,
+    y_right: bool = False,
 ) -> plt.collections.PathCollection:
     """Return a Scanpy ``DotPlot`` with z‑score colours & %‑size dots."""
     mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
@@ -78,9 +79,12 @@ def custom_deg_dotplot(
     z_df, pct_df = z_df.reset_index(names=names[1]), pct_df.reset_index(names=names[1])
     z_l, pct_l = pd.melt(z_df, id_vars = names[1], value_vars=[n for n in z_df.columns if n != names[1]], var_name=names[0], value_name="z-score"), pd.melt(pct_df, id_vars = names[1], value_vars=[n for n in z_df.columns if n != names[1]], var_name=names[0], value_name="fraction")
     f, ax = plt.subplots(figsize=figsize)
-    scatter = ax.scatter(z_l[names[0]], z_l[names[1]], s=pct_l["fraction"], c=z_l["z-score"], cmap=cmap)
+    if y_right:
+        ax.yaxis.set_label_position("right")
+        ax.yaxis.tick_right()
+    scatter = ax.scatter(z_l[names[0]], z_l[names[1]], s=pct_l["fraction"]*10, c=z_l["z-score"], cmap=cmap)
     f.colorbar(scatter)
-    plt.legend(*scatter.legend_elements("sizes", num=4), loc="lower center")
+    plt.legend(*scatter.legend_elements("sizes", num=4, func = lambda f: f/10.0), loc="lower center")
     plt.savefig(save, bbox_inches="tight")
     return scatter
 
