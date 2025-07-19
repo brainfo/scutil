@@ -81,10 +81,10 @@ def custom_deg_dotplot(
         z_names = z_names[::-1]
         pct_names = pct_names[::-1]
 
-    # z_l, pct_l = pd.melt(z_df,value_vars=z_df.columns, var_name=z_names[0], value_name=z_names[1]), pd.melt(pct_df, value_vars=pct_df.columns, var_name=pct_names[0], value_name=pct_names[1])
+    z_l, pct_l = pd.melt(z_df, value_vars=z_df.columns, var_name=z_names[0], value_name=z_names[1]), pd.melt(pct_df, value_vars=pct_df.columns, var_name=pct_names[0], value_name=pct_names[1])
     # f, ax = plt.subplots(figsize=figsize)
     # plt.scatter(z_l[z_names[0]], z_l[z_names[1]], s=pct_names[1], c=)
-    return z_df, pct_df
+    return z_l, pct_l
 
 
 def swap_axes(dotplot: DotPlot) -> DotPlot:
