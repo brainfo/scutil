@@ -99,14 +99,33 @@ def custom_deg_dotplot(
 
     if right_labels:
         try:
-            ax = dp.get_axes()["mainplot_ax"]
+            # Check available axes
+            axes_dict = dp.get_axes()
+            print(f"Available axes: {list(axes_dict.keys())}")
+            
+            # Try different possible axis names
+            ax = None
+            for key in ["mainplot_ax", "heatmap_ax", "ax"]:
+                if key in axes_dict:
+                    ax = axes_dict[key]
+                    print(f"Using axis: {key}")
+                    break
+            
+            if ax is None:
+                ax = list(axes_dict.values())[0]  # Use first available axis
+                print(f"Using first axis")
+            
             ax.yaxis.tick_right()
             ax.tick_params(axis="y", labelright=True, labelleft=False, pad=2)
             ax.spines['right'].set_visible(True)
             ax.spines['left'].set_visible(False)
             ax.figure.subplots_adjust(right=0.82)
+            print("right_labels applied successfully")
+            
         except Exception as e:
             print(f"Warning: Could not apply right_labels: {e}")
+            import traceback
+            traceback.print_exc()
 
 
     return dp
