@@ -1,19 +1,6 @@
 """
 dotplot_utils.py
-----------------
-Utility to build a **Scanpy DotPlot** where
 
-* **colour** = row‑centred *z‑score* of mean log‑norm expression;
-* **size**   = fraction of cells expressed (> 0) per group.
-
-Key points
-~~~~~~~~~~
-* Works with Scanpy 1.8 → 1.10 (uses only stable API).
-* Reads expression from `adata.X` (`layer=None`) **or** any named layer
-  (`layer="log_norm"`, `layer="scaled"`, …).
-* Optional `max_value` clips extreme z‑scores (like `sc.pp.scale`).
-* `right_labels=True` moves gene labels (y‑ticks) to the right.
-* Returns the :class:`scanpy.pl.DotPlot` object for further styling or saving.
 """
 from __future__ import annotations
 
@@ -22,7 +9,7 @@ from typing import Mapping, Sequence, Any
 import numpy as np
 import pandas as pd
 import scanpy as sc
-from scanpy.pl import DotPlot
+import matplotlib.pyplot as plt
 
 __all__ = ["custom_deg_dotplot", "swap_axes"]
 
@@ -83,34 +70,17 @@ def custom_deg_dotplot(
     colorbar_title: str = "Z‑score (log‑norm)",
     swap_axes: bool = False,
     dotplot_kwargs: Mapping[str, Any] | None = None,
+    figsize: tuple
 ) -> DotPlot:
     """Return a Scanpy ``DotPlot`` with z‑score colours & %‑size dots."""
     mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
     z_df = _zscore(mean_df, max_value)
-
-    dp = DotPlot(adata, var_names=genes, groupby=groupby, 
-                 dot_color_df=z_df, dot_size_df=pct_df, **(dotplot_kwargs or {}))
-    
-    # Handle axis swapping like Scanpy does
     if swap_axes:
-        dp.are_axes_swapped = True
-    dp.style(cmap=cmap)
-    dp.legend(colorbar_title=colorbar_title, size_title=size_title)
-
-    if right_labels:
-        # Force plot creation by accessing the figure
-        fig = dp.fig
-        main_ax = dp.get_axes()["mainplot_ax"]
-        
-        main_ax.yaxis.tick_right()
-        main_ax.tick_params(axis="y",
-                           labelright=True,            # show on the right
-                           labelleft=False,            # hide on the left
-                           pad=2)
-        main_ax.spines['right'].set_visible(True)
-        main_ax.spines['left'].set_visible(False)
-        fig.subplots_adjust(right=0.82)
-    return dp
+        z_df, pct_df = z_df.T, pct_df.T
+    z_l, pct_l = pd.melt(z_df), pd.wide_to_long(pct_df)
+    # f, ax = plt.subplots(figsize=figsize)
+    # plt.scatter()
+    return z_l, pct_l
 
 
 def swap_axes(dotplot: DotPlot) -> DotPlot:
@@ -118,34 +88,3 @@ def swap_axes(dotplot: DotPlot) -> DotPlot:
     # Toggle the swapped state like Scanpy does
     dotplot.are_axes_swapped = not getattr(dotplot, 'are_axes_swapped', False)
     return dotplot
-
-###############################################################################
-# CLI demo (optional)
-###############################################################################
-if __name__ == "__main__":  # pragma: no cover
-    import argparse
-    from matplotlib.colors import LinearSegmentedColormap
-
-    parser = argparse.ArgumentParser(description="Demo custom DEG dot‑plot.")
-    parser.add_argument("adata", help=".h5ad file with log‑norm layer + groups")
-    parser.add_argument("--groupby", default="group3", help="obs column")
-    parser.add_argument("--genes", nargs="*", help="genes to plot (default top‑20)")
-    parser.add_argument("--layer", default="log_norm", help="layer name or None")
-    parser.add_argument("--out", default="deg_dotplot.pdf", help="output PDF path")
-    args = parser.parse_args()
-
-    ad = sc.read_h5ad(args.adata)
-    genes = args.genes or list(ad.uns["rank_genes_groups"]["names"][0][:20])
-
-    cmap = LinearSegmentedColormap.from_list("twr", ["#468189", "white", "#FF0022"])
-
-    dp = custom_deg_dotplot(
-        ad,
-        genes=genes,
-        groupby=args.groupby,
-        layer=None if args.layer.lower() == "none" else args.layer,
-        max_value=3,
-        right_labels=True,
-        cmap=cmap
-    )
-    dp.savefig(args.out)
