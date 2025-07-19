@@ -74,14 +74,12 @@ def custom_deg_dotplot(
     """Return a Scanpy ``DotPlot`` with z‑score colours & %‑size dots."""
     mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
     z_df = _zscore(mean_df, max_value)
-    z_names = "genes", "group"
-    pct_names = "proportion", "group"
+    names = "genes", "group"
     if swap_axes:
         z_df, pct_df = z_df.T, pct_df.T
-        z_names = z_names[::-1]
-        pct_names = pct_names[::-1]
-
-    z_l, pct_l = pd.melt(z_df, value_vars=z_df.columns, var_name=z_names[0], value_name=z_names[1]), pd.melt(pct_df, value_vars=pct_df.columns, var_name=pct_names[0], value_name=pct_names[1])
+        names = names[::-1]
+    z_df, pct_df = z_df.reset_index(names=names[1]), pct_df.reset_index(names=names[1])
+    z_l, pct_l = pd.melt(z_df, value_vars=z_df.columns, var_name=names[0], value_name="z-score"), pd.melt(pct_df, value_vars=pct_df.columns, var_name=names[0], value_name="fraction")
     # f, ax = plt.subplots(figsize=figsize)
     # plt.scatter(z_l[z_names[0]], z_l[z_names[1]], s=pct_names[1], c=)
     return z_l, pct_l
