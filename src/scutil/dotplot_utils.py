@@ -1,23 +1,24 @@
 """
 dotplot_utils.py
-=================
-Helpers for **Scanpy** DEG dot‑plots where:
+----------------
+Utility to build a **Scanpy DotPlot** where
 
-* **Colour** = row‑centred *z‑scores* (mean−centered, σ‑scaled).
-* **Size**   = fraction of cells with expression > 0 per group.
+* **colour** = row‑centred *z‑score* of mean log‑norm expression;
+* **size**   = fraction of cells expressed (> 0) per group.
 
 Key points
-----------
-* Works with Scanpy 1.8 → 1.10 (handles both aggregate APIs).
-* **No `use_raw` parameter.**  Pass `layer="raw"` if you want to read from
-  ``adata.raw``.  Otherwise set ``layer=None`` (→ ``adata.X``) or a layer name.
-* Optional ``max_value`` clips extreme z‑scores.
-* ``right_labels=True`` moves gene labels to the right.
-* Returns the **DotPlot** object for further styling or saving.
+~~~~~~~~~~
+* Works with Scanpy 1.8 → 1.10 (uses only stable API).
+* Reads expression from `adata.X` (`layer=None`) **or** any named layer
+  (`layer="log_norm"`, `layer="scaled"`, …).
+* Optional `max_value` clips extreme z‑scores (like `sc.pp.scale`).
+* `right_labels=True` moves gene labels (y‑ticks) to the right.
+* Returns the :class:`scanpy.pl.DotPlot` object for further styling or saving.
 """
 from __future__ import annotations
 
-from typing import Sequence, Mapping, Any
+from typing import Mapping, Sequence, Any
+
 import numpy as np
 import pandas as pd
 import scanpy as sc
@@ -25,12 +26,12 @@ from scanpy.pl import DotPlot
 
 __all__ = ["custom_deg_dotplot"]
 
-# -----------------------------------------------------------------------------
-# internal helpers
-# -----------------------------------------------------------------------------
+###############################################################################
+# Helper functions
+###############################################################################
 
 def _group_sizes(adata: sc.AnnData, groupby: str, order: Sequence[str]) -> np.ndarray:
-    """Return cell counts per group in *order* (shape = G×1)."""
+    """Cell counts per group in *order* (shape = G×1)."""
     return (
         adata.obs[groupby]
         .value_counts()
@@ -46,125 +47,53 @@ def _aggregate_expression(
     groupby: str,
     *,
     layer: str | None = None,
-) -> tuple[pd.DataFrame, np.ndarray]:
-    """Return mean expression & fraction‑expressed per *group × gene*.
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Mean expression **and** fraction‑expressed for each *group × gene*.
 
     Parameters
     ----------
     adata
         Full AnnData object.
     genes
-        List/array of gene IDs **present in `adata.var_names`.**
+        Genes (must appear in `adata.var_names`).
     groupby
-        `adata.obs` column.
+        Column in `adata.obs` defining groups.
     layer
-        * ``None`` → use `adata.X`
-        * ``'raw'`` → use `adata.raw.to_adata().X`
-        * any other string → use `adata.layers[layer]`
-
-    The implementation never passes ``use_raw=`` to
-    :pyfunc:`scanpy.get.aggregate`, because older Scanpy versions don’t accept
-    that keyword.
+        * ``None`` → use `adata.X`.
+        * any string → use `adata.layers[layer]`.
     """
-    # decide which AnnData object + layer to feed into sc.get.aggregate
-    if layer == "raw":
-        if adata.raw is None:
-            raise ValueError("layer='raw' requested but `adata.raw` is None")
-        src = adata.raw.to_adata()
-        layer_arg = None  # use src.X
-    else:
-        src = adata
-        layer_arg = layer  # can be None or str
+    # expression source
+    src = adata
+    layer_arg = layer  # may be None or str
 
-    # try multi‑stat call first (Scanpy ≥1.9 accepts list for func)
-    try:
-        agg = sc.get.aggregate(
-            src[:, genes],
-            by=groupby,
-            layer=layer_arg,
-            func=["mean", "count_nonzero"],
-        )
-        mean_arr = agg.X if agg.X is not None else agg.layers["mean"]
-        cnt_arr  = agg.layers["count_nonzero"]
-        n_obs    = (
-            agg.obs.get("n_obs").to_numpy()[:, None]
-            if "n_obs" in agg.obs
-            else _group_sizes(src, groupby, agg.obs_names)
-        )
-    except Exception:  # fall back → two separate calls (works everywhere)
-        agg_mean = sc.get.aggregate(
-            src[:, genes],
-            by=groupby,
-            layer=layer_arg,
-            func="mean",
-        )
-        agg_cnt = sc.get.aggregate(
-            src[:, genes],
-            by=groupby,
-            layer=layer_arg,
-            func="count_nonzero",
-        )
-        agg_cnt = agg_cnt[agg_mean.obs_names, :][:, agg_mean.var_names]
-        mean_arr = agg_mean.X if agg_mean.X is not None else agg_mean.layers["mean"]
-        cnt_arr  = (
-            agg_cnt.layers["count_nonzero"]
-            if "count_nonzero" in agg_cnt.layers
-            else agg_cnt.X
-        )
-        n_obs = (
-            agg_mean.obs.get("n_obs").to_numpy()[:, None]
-            if "n_obs" in agg_mean.obs.columns
-            else _group_sizes(src, groupby, agg_mean.obs_names)
-        )
-
-    mean_df = pd.DataFrame(mean_arr, index=genes and None or None)  # placeholder
-    mean_df = pd.DataFrame(mean_arr, index=agg_mean.obs_names if 'agg_mean' in locals() else agg.obs_names, columns=agg_mean.var_names if 'agg_mean' in locals() else agg.var_names)
-
-    pct_matrix = cnt_arr / n_obs
-    return mean_df, pct_matrix
-
-    # fallback: two calls for mean & count_nonzero
-    agg_mean = sc.get.aggregate(
-        adata[:, genes],
-        by=groupby,
-        layer=layer_arg,
-        use_raw=use_raw,
-        func="mean",
-    )
-    agg_cnt = sc.get.aggregate(
-        adata[:, genes],
-        by=groupby,
-        layer=layer_arg,
-        use_raw=use_raw,
-        func="count_nonzero",
-    )
-
-    # align order just in case
-    agg_cnt = agg_cnt[agg_mean.obs_names, :][:, agg_mean.var_names]
-
+    # mean expression
+    agg_mean = sc.get.aggregate(src[:, genes], by=groupby, layer=layer_arg, func="mean")
     mean_arr = agg_mean.X if agg_mean.X is not None else agg_mean.layers["mean"]
-    cnt_arr = (
-        agg_cnt.layers["count_nonzero"]
-        if "count_nonzero" in agg_cnt.layers
-        else agg_cnt.X
-    )
-    n_obs = (
-        agg_mean.obs.get("n_obs").to_numpy()[:, None]
-        if "n_obs" in agg_mean.obs.columns
-        else _group_sizes(adata, groupby, agg_mean.obs_names)
-    )
     mean_df = pd.DataFrame(mean_arr, index=agg_mean.obs_names, columns=agg_mean.var_names)
-    pct = cnt_arr / n_obs
-    return mean_df, pct
+
+    # non‑zero counts
+    agg_cnt = sc.get.aggregate(src[:, genes], by=groupby, layer=layer_arg, func="count_nonzero")
+    agg_cnt = agg_cnt[mean_df.index, :][:, mean_df.columns]  # align order
+    cnt_arr = agg_cnt.X if agg_cnt.X is not None else agg_cnt.layers["count_nonzero"]
+
+    # group sizes
+    n_obs = (
+        agg_cnt.obs["n_obs"].to_numpy(int)[:, None]
+        if "n_obs" in agg_cnt.obs.columns
+        else _group_sizes(src, groupby, mean_df.index)
+    )
+
+    pct_df = pd.DataFrame(cnt_arr / n_obs, index=mean_df.index, columns=mean_df.columns)
+    return mean_df, pct_df
 
 
 def _zscore(df: pd.DataFrame, max_value: float | None) -> pd.DataFrame:
     z = (df - df.mean(0)) / df.std(0).replace(0, np.nan)
     return z.clip(-max_value, max_value) if max_value is not None else z
 
-# -----------------------------------------------------------------------------
-# public API
-# -----------------------------------------------------------------------------
+###############################################################################
+# Public API
+###############################################################################
 
 def custom_deg_dotplot(
     adata: sc.AnnData,
@@ -175,14 +104,12 @@ def custom_deg_dotplot(
     max_value: float | None = None,
     right_labels: bool = False,
     cmap: str | Any = "RdBu_r",
-    size_title: str | None = "Fraction of cells (%)",
-    colorbar_title: str | None = "Row Z‑score (log‑norm)",
+    size_title: str = "Fraction of cells (%)",
+    colorbar_title: str = "Row Z‑score (log‑norm)",
     dotplot_kwargs: Mapping[str, Any] | None = None,
 ) -> DotPlot:
-    """Return a Scanpy ``DotPlot`` whose colours = z‑scores & sizes = % cells."""
-    dotplot_kwargs = dict(dotplot_kwargs or {})
-
-    mean_df, pct = _aggregate_expression(adata, genes, groupby, layer=layer)
+    """Return a Scanpy ``DotPlot`` with z‑score colours & %‑size dots."""
+    mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
     z_df = _zscore(mean_df, max_value)
 
     dp = DotPlot(
@@ -190,8 +117,8 @@ def custom_deg_dotplot(
         var_names=genes,
         groupby=groupby,
         dot_color_df=z_df,
-        dot_size_df=pct,
-        **dotplot_kwargs,
+        dot_size_df=pct_df,
+        **(dotplot_kwargs or {}),
     )
     dp.style(cmap=cmap, edgecolor="face")
     dp.legend(colorbar_title=colorbar_title, size_title=size_title)
@@ -204,19 +131,19 @@ def custom_deg_dotplot(
 
     return dp
 
-# -----------------------------------------------------------------------------
-# CLI demo
-# -----------------------------------------------------------------------------
-if __name__ == "__main__":
+###############################################################################
+# CLI demo (optional)
+###############################################################################
+if __name__ == "__main__":  # pragma: no cover
     import argparse
     from matplotlib.colors import LinearSegmentedColormap
 
     parser = argparse.ArgumentParser(description="Demo custom DEG dot‑plot.")
-    parser.add_argument("adata", help=".h5ad file with `log_norm` layer")
-    parser.add_argument("--groupby", default="group3", help="obs column for groups")
-    parser.add_argument("--genes", nargs="*", help="genes to plot (default: top‑20)")
-    parser.add_argument("--layer", default="log_norm", help="layer or 'raw' or None")
-    parser.add_argument("--out", default="deg_dotplot.pdf", help="output figure path")
+    parser.add_argument("adata", help=".h5ad file with log‑norm layer + groups")
+    parser.add_argument("--groupby", default="group3", help="obs column")
+    parser.add_argument("--genes", nargs="*", help="genes to plot (default top‑20)")
+    parser.add_argument("--layer", default="log_norm", help="layer name or None")
+    parser.add_argument("--out", default="deg_dotplot.pdf", help="output PDF path")
     args = parser.parse_args()
 
     ad = sc.read_h5ad(args.adata)
@@ -233,5 +160,4 @@ if __name__ == "__main__":
         right_labels=True,
         cmap=cmap,
     )
-    dp.show()
     dp.savefig(args.out)
