@@ -82,8 +82,6 @@ def custom_deg_dotplot(
     size_title: str = "Fraction of cells (%)",
     colorbar_title: str = "Row Z‑score (log‑norm)",
     swap_axes: bool = False,
-    legend_width: float = 0.2,
-    legend_height: float = 0.6,
     dotplot_kwargs: Mapping[str, Any] | None = None,
 ) -> DotPlot:
     """Return a Scanpy ``DotPlot`` with z‑score colours & %‑size dots."""
@@ -97,8 +95,7 @@ def custom_deg_dotplot(
     if swap_axes:
         dp.are_axes_swapped = True
     dp.style(cmap=cmap)
-    dp.legend(colorbar_title=colorbar_title, size_title=size_title, 
-              width=legend_width, height=legend_height)
+    dp.legend(colorbar_title=colorbar_title, size_title=size_title)
 
     if right_labels:
         try:
