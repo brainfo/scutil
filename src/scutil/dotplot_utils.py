@@ -98,39 +98,15 @@ def custom_deg_dotplot(
     dp.legend(colorbar_title=colorbar_title, size_title=size_title)
 
     if right_labels:
-        # Create a wrapper function to apply right labels after plotting
-        original_show = dp.show
-        original_savefig = dp.savefig
-        
-        def apply_right_labels():
-            try:
-                axes_dict = dp.get_axes()
-                main_ax = axes_dict.get("mainplot_ax") or list(axes_dict.values())[0]
-                
-                main_ax.yaxis.tick_right()
-                main_ax.tick_params(axis="y",
-                                   labelright=True,            # show on the right
-                                   labelleft=False,            # hide on the left
-                                   pad=2)
-                main_ax.spines['right'].set_visible(True)
-                main_ax.spines['left'].set_visible(False)
-                main_ax.figure.subplots_adjust(right=0.82)
-                
-            except Exception as e:
-                print(f"Warning: Could not apply right_labels: {e}")
-        
-        def wrapped_show(*args, **kwargs):
-            result = original_show(*args, **kwargs)
-            apply_right_labels()
-            return result
-            
-        def wrapped_savefig(*args, **kwargs):
-            result = original_savefig(*args, **kwargs)
-            apply_right_labels()
-            return result
-        
-        dp.show = wrapped_show
-        dp.savefig = wrapped_savefig
+        main_ax = dp.get_axes()["mainplot_ax"]
+        main_ax.yaxis.tick_right()
+        main_ax.tick_params(axis="y",
+                           labelright=True,            # show on the right
+                           labelleft=False,            # hide on the left
+                           pad=2)
+        main_ax.spines['right'].set_visible(True)
+        main_ax.spines['left'].set_visible(False)
+        main_ax.figure.subplots_adjust(right=0.82)
 
 
     return dp
