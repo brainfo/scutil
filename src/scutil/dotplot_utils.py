@@ -90,7 +90,7 @@ def custom_deg_dotplot(
 
     if swap_axes:
         z_df, pct_df = z_df.T, pct_df.T
-        var_names, group_by = list(mean_df.index), genes
+        var_names, group_by = list(mean_df.index), groupby
     else:
         var_names, group_by = genes, groupby
 
