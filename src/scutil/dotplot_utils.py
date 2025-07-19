@@ -88,20 +88,14 @@ def custom_deg_dotplot(
     mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
     z_df = _zscore(mean_df, max_value)
 
-    # Handle axis swapping like Scanpy does
-    if swap_axes:
-        z_df = z_df.T
-        pct_df = pct_df.T
-        # When swapping, group categories become var_names and we need a dummy groupby
-        group_cats = list(adata.obs[groupby].cat.categories)
-        dp = DotPlot(adata, var_names=group_cats, groupby=genes[0], 
-                     dot_color_df=z_df, dot_size_df=pct_df, **(dotplot_kwargs or {}))
-    else:
-        dp = DotPlot(adata, var_names=genes, groupby=groupby, 
-                     dot_color_df=z_df, dot_size_df=pct_df, **(dotplot_kwargs or {}))
+    dp = DotPlot(adata, var_names=genes, groupby=groupby, 
+                 dot_color_df=z_df, dot_size_df=pct_df, **(dotplot_kwargs or {}))
     
-    # Set the swapped state for consistent handling
-    dp.are_axes_swapped = swap_axes
+    # Handle axis swapping like Scanpy does - transpose after creation
+    if swap_axes:
+        dp.dot_color_df = dp.dot_color_df.T
+        dp.dot_size_df = dp.dot_size_df.T
+        dp.are_axes_swapped = True
     dp.style(cmap=cmap)
     dp.legend(colorbar_title=colorbar_title, size_title=size_title)
 
