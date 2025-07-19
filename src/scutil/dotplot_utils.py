@@ -11,7 +11,7 @@ import pandas as pd
 import scanpy as sc
 import matplotlib.pyplot as plt
 
-__all__ = ["custom_deg_dotplot", "swap_axes"]
+__all__ = ["custom_deg_dotplot"]
 
 ###############################################################################
 # Helper functions
@@ -62,15 +62,12 @@ def custom_deg_dotplot(
     genes: Sequence[str],
     groupby: str,
     figsize: tuple,
+    save : str,
     layer: str | None = "log_norm",
     max_value: float | None = None,
-    # right_labels: bool = False,
-    # cmap: str | Any = "RdBu_r",
-    # size_title: str = "Fraction of cells (%)",
-    # colorbar_title: str = "Z‑score (log‑norm)",
-    swap_axes: bool = False,
-    # dotplot_kwargs: Mapping[str, Any] | None = None,
-) -> DotPlot:
+    cmap: str | Any = "RdBu_r",
+    swap_axes: bool = False
+) -> plt.collections.PathCollection:
     """Return a Scanpy ``DotPlot`` with z‑score colours & %‑size dots."""
     mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
     z_df = _zscore(mean_df, max_value)
@@ -80,13 +77,12 @@ def custom_deg_dotplot(
         names = names[::-1]
     z_df, pct_df = z_df.reset_index(names=names[1]), pct_df.reset_index(names=names[1])
     z_l, pct_l = pd.melt(z_df, id_vars = names[1], value_vars=[n for n in z_df.columns if n != names[1]], var_name=names[0], value_name="z-score"), pd.melt(pct_df, id_vars = names[1], value_vars=[n for n in z_df.columns if n != names[1]], var_name=names[0], value_name="fraction")
-    # f, ax = plt.subplots(figsize=figsize)
-    # plt.scatter(z_l[z_names[0]], z_l[z_names[1]], s=pct_names[1], c=)
-    return z_l, pct_l
+    f, ax = plt.subplots(figsize=figsize)
+    scatter = ax.scatter(z_l[names[0]], z_l[names[1]], s=pct_l["fraction"], c=z_l["z-score"], cmap=cmap)
+    f.colorbar(scatter)
+    plt.legend(*scatter.legend_elements("sizes", num=4), loc="lower center")
+    plt.savefig(save, bbox_inches="tight")
+    return scatter
 
 
-def swap_axes(dotplot: DotPlot) -> DotPlot:
-    """Swap x and y axes of a DotPlot following Scanpy's approach."""
-    # Toggle the swapped state like Scanpy does
-    dotplot.are_axes_swapped = not getattr(dotplot, 'are_axes_swapped', False)
-    return dotplot
+# def swap_axes(dotplot: DotPlot) -> DotPlot:
