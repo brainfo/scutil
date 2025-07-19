@@ -24,7 +24,7 @@ import pandas as pd
 import scanpy as sc
 from scanpy.pl import DotPlot
 
-__all__ = ["custom_deg_dotplot"]
+__all__ = ["custom_deg_dotplot", "swap_axes"]
 
 ###############################################################################
 # Helper functions
@@ -106,6 +106,7 @@ def custom_deg_dotplot(
     cmap: str | Any = "RdBu_r",
     size_title: str = "Fraction of cells (%)",
     colorbar_title: str = "Row Z‑score (log‑norm)",
+    swap_axes: bool = False,
     dotplot_kwargs: Mapping[str, Any] | None = None,
 ) -> DotPlot:
     """Return a Scanpy ``DotPlot`` with z‑score colours & %‑size dots."""
@@ -129,7 +130,43 @@ def custom_deg_dotplot(
         ax.tick_params(axis="y", labelright=True, labelleft=False, pad=2)
         ax.figure.subplots_adjust(right=0.82)
 
+    if swap_axes:
+        dp = swap_axes(dp)
+
     return dp
+
+
+def swap_axes(dotplot: DotPlot) -> DotPlot:
+    """Swap x and y axes of a DotPlot by transposing the underlying data.
+    
+    Parameters
+    ----------
+    dotplot
+        A Scanpy DotPlot object to transpose.
+        
+    Returns
+    -------
+    DotPlot
+        A new DotPlot with swapped axes.
+    """
+    # Get the underlying data
+    color_df = dotplot.dot_color_df.T if dotplot.dot_color_df is not None else None
+    size_df = dotplot.dot_size_df.T if dotplot.dot_size_df is not None else None
+    
+    # Create new dotplot with transposed data and swapped var_names/groupby
+    new_dotplot = DotPlot(
+        dotplot.adata,
+        var_names=dotplot.groupby_names,
+        groupby=dotplot.var_names,
+        dot_color_df=color_df,
+        dot_size_df=size_df,
+        **dotplot.kwds
+    )
+    
+    # Copy styling from original
+    new_dotplot.style(cmap=dotplot.cmap)
+    
+    return new_dotplot
 
 ###############################################################################
 # CLI demo (optional)
