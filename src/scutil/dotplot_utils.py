@@ -32,13 +32,7 @@ __all__ = ["custom_deg_dotplot", "swap_axes"]
 
 def _group_sizes(adata: sc.AnnData, groupby: str, order: Sequence[str]) -> np.ndarray:
     """Cell counts per group in *order* (shape = G×1)."""
-    return (
-        adata.obs[groupby]
-        .value_counts()
-        .reindex(order)
-        .fillna(0)
-        .to_numpy(int)[:, None]
-    )
+    return adata.obs[groupby].value_counts().reindex(order).fillna(0).to_numpy(int)[:, None]
 
 
 def _aggregate_expression(
@@ -48,40 +42,21 @@ def _aggregate_expression(
     *,
     layer: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Mean expression **and** fraction‑expressed for each *group × gene*.
-
-    Parameters
-    ----------
-    adata
-        Full AnnData object.
-    genes
-        Genes (must appear in `adata.var_names`).
-    groupby
-        Column in `adata.obs` defining groups.
-    layer
-        * ``None`` → use `adata.X`.
-        * any string → use `adata.layers[layer]`.
-    """
-    # expression source
-    src = adata
-    layer_arg = layer  # may be None or str
-
-    # mean expression
-    agg_mean = sc.get.aggregate(src[:, genes], by=groupby, layer=layer_arg, func="mean")
+    """Mean expression and fraction‑expressed for each group × gene."""
+    # Mean expression
+    agg_mean = sc.get.aggregate(adata[:, genes], by=groupby, layer=layer, func="mean")
     mean_arr = agg_mean.X if agg_mean.X is not None else agg_mean.layers["mean"]
     mean_df = pd.DataFrame(mean_arr, index=agg_mean.obs_names, columns=agg_mean.var_names)
 
-    # non‑zero counts
-    agg_cnt = sc.get.aggregate(src[:, genes], by=groupby, layer=layer_arg, func="count_nonzero")
-    agg_cnt = agg_cnt[mean_df.index, :][:, mean_df.columns]  # align order
+    # Non‑zero counts  
+    agg_cnt = sc.get.aggregate(adata[:, genes], by=groupby, layer=layer, func="count_nonzero")
+    agg_cnt = agg_cnt[mean_df.index, :][:, mean_df.columns]
     cnt_arr = agg_cnt.X if agg_cnt.X is not None else agg_cnt.layers["count_nonzero"]
 
-    # group sizes
-    n_obs = (
-        agg_cnt.obs["n_obs"].to_numpy(int)[:, None]
-        if "n_obs" in agg_cnt.obs.columns
-        else _group_sizes(src, groupby, mean_df.index)
-    )
+    # Group sizes
+    n_obs = (agg_cnt.obs["n_obs"].to_numpy(int)[:, None] 
+             if "n_obs" in agg_cnt.obs.columns 
+             else _group_sizes(adata, groupby, mean_df.index))
 
     pct_df = pd.DataFrame(cnt_arr / n_obs, index=mean_df.index, columns=mean_df.columns)
     return mean_df, pct_df
@@ -89,7 +64,7 @@ def _aggregate_expression(
 
 def _zscore(df: pd.DataFrame, max_value: float | None) -> pd.DataFrame:
     z = (df - df.mean(0)) / df.std(0).replace(0, np.nan)
-    return z.clip(-max_value, max_value) if max_value is not None else z
+    return z.clip(-max_value, max_value) if max_value else z
 
 ###############################################################################
 # Public API
@@ -113,14 +88,11 @@ def custom_deg_dotplot(
     mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
     z_df = _zscore(mean_df, max_value)
 
-    dp = DotPlot(
-        adata,
-        var_names=genes,
-        groupby=groupby,
-        dot_color_df=z_df,
-        dot_size_df=pct_df,
-        **(dotplot_kwargs or {}),
-    )
+    if swap_axes:
+        z_df, pct_df, genes, groupby = z_df.T, pct_df.T, groupby, genes
+
+    dp = DotPlot(adata, var_names=genes, groupby=groupby, 
+                 dot_color_df=z_df, dot_size_df=pct_df, **(dotplot_kwargs or {}))
     dp.style(cmap=cmap)
     dp.legend(colorbar_title=colorbar_title, size_title=size_title)
 
@@ -130,43 +102,15 @@ def custom_deg_dotplot(
         ax.tick_params(axis="y", labelright=True, labelleft=False, pad=2)
         ax.figure.subplots_adjust(right=0.82)
 
-    if swap_axes:
-        dp = swap_axes(dp)
-
     return dp
 
 
 def swap_axes(dotplot: DotPlot) -> DotPlot:
-    """Swap x and y axes of a DotPlot by transposing the underlying data.
-    
-    Parameters
-    ----------
-    dotplot
-        A Scanpy DotPlot object to transpose.
-        
-    Returns
-    -------
-    DotPlot
-        A new DotPlot with swapped axes.
-    """
-    # Get the underlying data
-    color_df = dotplot.dot_color_df.T if dotplot.dot_color_df is not None else None
-    size_df = dotplot.dot_size_df.T if dotplot.dot_size_df is not None else None
-    
-    # Create new dotplot with transposed data and swapped var_names/groupby
-    new_dotplot = DotPlot(
-        dotplot.adata,
-        var_names=dotplot.groupby_names,
-        groupby=dotplot.var_names,
-        dot_color_df=color_df,
-        dot_size_df=size_df,
-        **dotplot.kwds
+    """Swap x and y axes of a DotPlot by transposing the underlying data."""
+    return DotPlot(
+        dotplot.adata, var_names=dotplot.groupby_names, groupby=dotplot.var_names,
+        dot_color_df=dotplot.dot_color_df.T, dot_size_df=dotplot.dot_size_df.T, **dotplot.kwds
     )
-    
-    # Copy styling from original
-    new_dotplot.style(cmap=dotplot.cmap)
-    
-    return new_dotplot
 
 ###############################################################################
 # CLI demo (optional)
