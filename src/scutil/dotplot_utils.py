@@ -89,9 +89,12 @@ def custom_deg_dotplot(
     z_df = _zscore(mean_df, max_value)
 
     if swap_axes:
-        z_df, pct_df, genes, groupby = z_df.T, pct_df.T, groupby, genes
+        z_df, pct_df = z_df.T, pct_df.T
+        var_names, group_by = list(mean_df.index), genes
+    else:
+        var_names, group_by = genes, groupby
 
-    dp = DotPlot(adata, var_names=genes, groupby=groupby, 
+    dp = DotPlot(adata, var_names=var_names, groupby=group_by, 
                  dot_color_df=z_df, dot_size_df=pct_df, **(dotplot_kwargs or {}))
     dp.style(cmap=cmap)
     dp.legend(colorbar_title=colorbar_title, size_title=size_title)
