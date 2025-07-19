@@ -82,6 +82,8 @@ def custom_deg_dotplot(
     size_title: str = "Fraction of cells (%)",
     colorbar_title: str = "Row Z‑score (log‑norm)",
     swap_axes: bool = False,
+    legend_width: float = 0.2,
+    legend_height: float = 0.6,
     dotplot_kwargs: Mapping[str, Any] | None = None,
 ) -> DotPlot:
     """Return a Scanpy ``DotPlot`` with z‑score colours & %‑size dots."""
@@ -95,15 +97,19 @@ def custom_deg_dotplot(
     if swap_axes:
         dp.are_axes_swapped = True
     dp.style(cmap=cmap)
-    dp.legend(colorbar_title=colorbar_title, size_title=size_title)
+    dp.legend(colorbar_title=colorbar_title, size_title=size_title, 
+              width=legend_width, height=legend_height)
 
     if right_labels:
-        ax = dp.get_axes()["mainplot_ax"]
-        ax.yaxis.tick_right()
-        ax.tick_params(axis="y", labelright=True, labelleft=False, pad=2)
-        ax.spines['right'].set_visible(True)
-        ax.spines['left'].set_visible(False)
-        ax.figure.subplots_adjust(right=0.82)
+        try:
+            ax = dp.get_axes()["mainplot_ax"]
+            ax.yaxis.tick_right()
+            ax.tick_params(axis="y", labelright=True, labelleft=False, pad=2)
+            ax.spines['right'].set_visible(True)
+            ax.spines['left'].set_visible(False)
+            ax.figure.subplots_adjust(right=0.82)
+        except Exception as e:
+            print(f"Warning: Could not apply right_labels: {e}")
 
 
     return dp
