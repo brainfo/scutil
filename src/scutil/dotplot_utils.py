@@ -100,9 +100,11 @@ def custom_deg_dotplot(
         ax.figure.subplots_adjust(right=0.82)
 
     if swap_axes:
-        import sys
-        current_module = sys.modules[__name__]
-        dp = current_module.swap_axes(dp)
+        group_cats = list(adata.obs[groupby].cat.categories)
+        dp = DotPlot(adata, var_names=group_cats, groupby=genes[0],
+                     dot_color_df=dp.dot_color_df.T, dot_size_df=dp.dot_size_df.T)
+        dp.style(cmap=cmap)
+        dp.legend(colorbar_title=colorbar_title, size_title=size_title)
 
     return dp
 
