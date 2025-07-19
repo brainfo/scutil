@@ -91,10 +91,8 @@ def custom_deg_dotplot(
     dp = DotPlot(adata, var_names=genes, groupby=groupby, 
                  dot_color_df=z_df, dot_size_df=pct_df, **(dotplot_kwargs or {}))
     
-    # Handle axis swapping like Scanpy does - transpose after creation
+    # Handle axis swapping like Scanpy does
     if swap_axes:
-        dp.dot_color_df = dp.dot_color_df.T
-        dp.dot_size_df = dp.dot_size_df.T
         dp.are_axes_swapped = True
     dp.style(cmap=cmap)
     dp.legend(colorbar_title=colorbar_title, size_title=size_title)
@@ -113,15 +111,8 @@ def custom_deg_dotplot(
 
 def swap_axes(dotplot: DotPlot) -> DotPlot:
     """Swap x and y axes of a DotPlot following Scanpy's approach."""
-    # Transpose the data matrices like Scanpy does
-    if hasattr(dotplot, 'dot_color_df') and dotplot.dot_color_df is not None:
-        dotplot.dot_color_df = dotplot.dot_color_df.T
-    if hasattr(dotplot, 'dot_size_df') and dotplot.dot_size_df is not None:
-        dotplot.dot_size_df = dotplot.dot_size_df.T
-    
-    # Toggle the swapped state
+    # Toggle the swapped state like Scanpy does
     dotplot.are_axes_swapped = not getattr(dotplot, 'are_axes_swapped', False)
-    
     return dotplot
 
 ###############################################################################
