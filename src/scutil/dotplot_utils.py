@@ -88,13 +88,7 @@ def custom_deg_dotplot(
     mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
     z_df = _zscore(mean_df, max_value)
 
-    if swap_axes:
-        z_df, pct_df = z_df.T, pct_df.T
-        var_names, group_by = list(mean_df.index), groupby
-    else:
-        var_names, group_by = genes, groupby
-
-    dp = DotPlot(adata, var_names=var_names, groupby=group_by, 
+    dp = DotPlot(adata, var_names=genes, groupby=groupby, 
                  dot_color_df=z_df, dot_size_df=pct_df, **(dotplot_kwargs or {}))
     dp.style(cmap=cmap)
     dp.legend(colorbar_title=colorbar_title, size_title=size_title)
@@ -104,6 +98,14 @@ def custom_deg_dotplot(
         ax.yaxis.tick_right()
         ax.tick_params(axis="y", labelright=True, labelleft=False, pad=2)
         ax.figure.subplots_adjust(right=0.82)
+
+    if swap_axes:
+        color_df = dp.dot_color_df.T if dp.dot_color_df is not None else None
+        size_df = dp.dot_size_df.T if dp.dot_size_df is not None else None
+        dp = DotPlot(adata, var_names=dp.groupby_names, groupby=dp.var_names,
+                     dot_color_df=color_df, dot_size_df=size_df, **(dotplot_kwargs or {}))
+        dp.style(cmap=cmap)
+        dp.legend(colorbar_title=colorbar_title, size_title=size_title)
 
     return dp
 
