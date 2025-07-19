@@ -61,16 +61,15 @@ def custom_deg_dotplot(
     adata: sc.AnnData,
     genes: Sequence[str],
     groupby: str,
-    *,
     layer: str | None = "log_norm",
     max_value: float | None = None,
-    right_labels: bool = False,
-    cmap: str | Any = "RdBu_r",
-    size_title: str = "Fraction of cells (%)",
-    colorbar_title: str = "Z‑score (log‑norm)",
+    # right_labels: bool = False,
+    # cmap: str | Any = "RdBu_r",
+    # size_title: str = "Fraction of cells (%)",
+    # colorbar_title: str = "Z‑score (log‑norm)",
     swap_axes: bool = False,
-    dotplot_kwargs: Mapping[str, Any] | None = None,
-    figsize: tuple
+    # dotplot_kwargs: Mapping[str, Any] | None = None,
+    # figsize: tuple
 ) -> DotPlot:
     """Return a Scanpy ``DotPlot`` with z‑score colours & %‑size dots."""
     mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
