@@ -88,8 +88,16 @@ def custom_deg_dotplot(
     mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
     z_df = _zscore(mean_df, max_value)
 
+    # Handle axis swapping like Scanpy does
+    if swap_axes:
+        z_df = z_df.T
+        pct_df = pct_df.T
+
     dp = DotPlot(adata, var_names=genes, groupby=groupby, 
                  dot_color_df=z_df, dot_size_df=pct_df, **(dotplot_kwargs or {}))
+    
+    # Set the swapped state for consistent handling
+    dp.are_axes_swapped = swap_axes
     dp.style(cmap=cmap)
     dp.legend(colorbar_title=colorbar_title, size_title=size_title)
 
@@ -97,26 +105,26 @@ def custom_deg_dotplot(
         ax = dp.get_axes()["mainplot_ax"]
         ax.yaxis.tick_right()
         ax.tick_params(axis="y", labelright=True, labelleft=False, pad=2)
+        ax.spines['right'].set_visible(True)
+        ax.spines['left'].set_visible(False)
         ax.figure.subplots_adjust(right=0.82)
 
-    if swap_axes:
-        group_cats = list(adata.obs[groupby].cat.categories)
-        dp = DotPlot(adata, var_names=group_cats, groupby=genes[0],
-                     dot_color_df=dp.dot_color_df.T, dot_size_df=dp.dot_size_df.T)
-        dp.style(cmap=cmap)
-        dp.legend(colorbar_title=colorbar_title, size_title=size_title)
 
     return dp
 
 
 def swap_axes(dotplot: DotPlot) -> DotPlot:
-    """Swap x and y axes of a DotPlot by transposing the underlying data."""
-    # Get the group categories from the original groupby column
-    group_cats = list(dotplot.adata.obs[dotplot._groupby].cat.categories)
-    return DotPlot(
-        dotplot.adata, var_names=group_cats, groupby=dotplot._var_names[0],
-        dot_color_df=dotplot.dot_color_df.T, dot_size_df=dotplot.dot_size_df.T
-    )
+    """Swap x and y axes of a DotPlot following Scanpy's approach."""
+    # Transpose the data matrices like Scanpy does
+    if hasattr(dotplot, 'dot_color_df') and dotplot.dot_color_df is not None:
+        dotplot.dot_color_df = dotplot.dot_color_df.T
+    if hasattr(dotplot, 'dot_size_df') and dotplot.dot_size_df is not None:
+        dotplot.dot_size_df = dotplot.dot_size_df.T
+    
+    # Toggle the swapped state
+    dotplot.are_axes_swapped = not getattr(dotplot, 'are_axes_swapped', False)
+    
+    return dotplot
 
 ###############################################################################
 # CLI demo (optional)
