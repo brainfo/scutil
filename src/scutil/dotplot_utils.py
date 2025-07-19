@@ -120,7 +120,7 @@ def custom_deg_dotplot(
         dot_size_df=pct_df,
         **(dotplot_kwargs or {}),
     )
-    dp.style(cmap=cmap, edgecolor="face")
+    dp.style(cmap=cmap)
     dp.legend(colorbar_title=colorbar_title, size_title=size_title)
 
     if right_labels:
