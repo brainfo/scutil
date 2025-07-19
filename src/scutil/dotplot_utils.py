@@ -80,7 +80,7 @@ def custom_deg_dotplot(
     right_labels: bool = False,
     cmap: str | Any = "RdBu_r",
     size_title: str = "Fraction of cells (%)",
-    colorbar_title: str = "Row Z‑score (log‑norm)",
+    colorbar_title: str = "Z‑score (log‑norm)",
     swap_axes: bool = False,
     dotplot_kwargs: Mapping[str, Any] | None = None,
 ) -> DotPlot:
@@ -98,7 +98,10 @@ def custom_deg_dotplot(
     dp.legend(colorbar_title=colorbar_title, size_title=size_title)
 
     if right_labels:
+        # Force plot creation by accessing the figure
+        fig = dp.fig
         main_ax = dp.get_axes()["mainplot_ax"]
+        
         main_ax.yaxis.tick_right()
         main_ax.tick_params(axis="y",
                            labelright=True,            # show on the right
@@ -106,9 +109,7 @@ def custom_deg_dotplot(
                            pad=2)
         main_ax.spines['right'].set_visible(True)
         main_ax.spines['left'].set_visible(False)
-        main_ax.figure.subplots_adjust(right=0.82)
-
-
+        fig.subplots_adjust(right=0.82)
     return dp
 
 
@@ -145,6 +146,6 @@ if __name__ == "__main__":  # pragma: no cover
         layer=None if args.layer.lower() == "none" else args.layer,
         max_value=3,
         right_labels=True,
-        cmap=cmap,
+        cmap=cmap
     )
     dp.savefig(args.out)
