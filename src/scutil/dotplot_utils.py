@@ -80,13 +80,14 @@ def custom_deg_dotplot(
     z_l, pct_l = pd.melt(z_df, id_vars = names[1], value_vars=[n for n in z_df.columns if n != names[1]], var_name=names[0], value_name="z-score"), pd.melt(pct_df, id_vars = names[1], value_vars=[n for n in z_df.columns if n != names[1]], var_name=names[0], value_name="fraction")
     f, ax = plt.subplots(figsize=figsize)
     if y_right:
+        ax.spines[['top', 'left']].set_visible(False)
         ax.yaxis.set_label_position("right")
         ax.yaxis.tick_right()
-    scatter = ax.scatter(z_l[names[0]], z_l[names[1]], s=pct_l["fraction"]*10, c=z_l["z-score"], cmap=cmap)
-    f.colorbar(scatter)
-    plt.legend(*scatter.legend_elements("sizes", num=4, func = lambda f: f/10.0), loc="lower center")
+    else:
+        ax.spines[['top', 'right']].set_visible(False)
+    scatter = ax.scatter(z_l[names[0]], z_l[names[1]], s=pct_l["fraction"]*100, c=z_l["z-score"], cmap=cmap)
+    f.colorbar(scatter, ax=ax, location="bottom", pad=0.15, label="z-score")
+    ax.legend(*scatter.legend_elements(prop="sizes", num=4, func=lambda f: f"{f}%"), 
+              loc="lower center", bbox_to_anchor=(0.5, -0.25), title="Fraction")
     plt.savefig(save, bbox_inches="tight")
     return scatter
-
-
-# def swap_axes(dotplot: DotPlot) -> DotPlot:
