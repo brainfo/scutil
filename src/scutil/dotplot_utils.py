@@ -83,14 +83,14 @@ def custom_deg_dotplot(
         ax.spines[['top', 'left']].set_visible(False)
         ax.yaxis.set_label_position("right")
         ax.yaxis.tick_right()
-        legend_loc = "lower left"
+        legend_bbox = (-0.05, 0.02)
     else:
         ax.spines[['top', 'right']].set_visible(False)
-        legend_loc = "lower right"
+        legend_bbox = (1.05, 0.02)
     scatter = ax.scatter(z_l[names[0]], z_l[names[1]], s=pct_l["fraction"]*100, c=z_l["z-score"], cmap=cmap)
     f.colorbar(scatter, ax=ax, location="bottom", pad=0.25, label="z-score")
     size_handles, size_labels = scatter.legend_elements(prop="sizes", alpha=0.6)
     ax.legend([plt.scatter([], [], s=s, alpha=0.6, color='gray') for s in [20, 40, 60, 80]], 
-              ['20%', '40%', '60%', '80%'], loc=legend_loc, title="Fraction", frameon=False)
+              ['20%', '40%', '60%', '80%'], bbox_to_anchor=legend_bbox, title="Fraction", frameon=False)
     plt.savefig(save, bbox_inches="tight")
     return scatter
