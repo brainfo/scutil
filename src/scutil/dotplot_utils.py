@@ -90,6 +90,7 @@ def custom_deg_dotplot(
         ax.spines[['top', 'right']].set_visible(False)
         legend_bbox = (1.3, 0.5)
     scatter = ax.scatter(z_l[names[0]], z_l[names[1]], s=pct_l["fraction"]*100, c=z_l["z-score"], cmap=cmap, vmin=vmin, vmax=vmax, linewidths=0.5)
+    ax.margins(y=0.2)
     cbar = f.colorbar(scatter, ax=ax, location="bottom", pad=0.5)
     cbar.outline.set_visible(False)
     cbar.ax.set_title("z-score", pad=4)
