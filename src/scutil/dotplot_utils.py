@@ -96,5 +96,5 @@ def custom_deg_dotplot(
     size_handles, size_labels = scatter.legend_elements(prop="sizes", alpha=0.6)
     ax.legend([plt.scatter([], [], s=s, alpha=0.6, color='gray') for s in [20, 60, 100]], 
               ['20%', '60%', '100%'], bbox_to_anchor=legend_bbox, loc='center', title="Fraction", frameon=False)
-    plt.savefig(save, bbox_inches="tight")
+    plt.savefig(save, bbox_inches="tight", pad_inches=0)
     return scatter
