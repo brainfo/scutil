@@ -140,5 +140,5 @@ def custom_deg_dotplot(
     )
     legend.set_in_layout(False)        # keep legend size *constant*
 
-    fig.savefig(save, bbox_inches="tight", bbox_extra_artists=legend, pad_inches=0)
+    fig.savefig(save, bbox_inches="tight", bbox_extra_artists=[legend], pad_inches=0)
     return scatter
