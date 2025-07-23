@@ -31,6 +31,8 @@ This is for scRNAseq data analysis where
 
 2. for dot plots with z-score (color) while keep count for pct (size)
 
+    y labels can be on left or right side, and the legend will be located accordingly
+
     ```python
     from scutil.dotplot_utils import custom_deg_dotplot
     genes = ["EGFR", "ERBB2", "IGF1R"]
@@ -45,6 +47,6 @@ This is for scRNAseq data analysis where
     figsize= [7.09/6, 6.69/8],
     vmin = -1,
     vmax=1,
-    save = "figures/DEGs/ccc_dots/stb4hb_dotplot.pdf"
+    save = "tests/figures/test_dotplot.pdf"
     )
     ```
