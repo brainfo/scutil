@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 __all__ = ["custom_deg_dotplot"]
 
@@ -62,7 +63,7 @@ def custom_deg_dotplot(
     genes: Sequence[str],
     groupby: str,
     figsize: tuple,
-    save : str,
+    save: str,
     layer: str | None = "log_norm",
     max_value: float | None = None,
     cmap: str | Any = "RdBu_r",
@@ -71,31 +72,75 @@ def custom_deg_dotplot(
     vmin: float | None = None,
     vmax: float | None = None,
 ) -> plt.collections.PathCollection:
-    """Return a Scanpy ``DotPlot`` with z‑score colours & %‑size dots."""
+    # --- data prep (unchanged) -------------------------------------------------
     mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
-    z_df = _zscore(mean_df, max_value)
-    names = "genes", "group"
+    z_df          = _zscore(mean_df, max_value)
+
+    names = ("genes", "group")
     if swap_axes:
         z_df, pct_df = z_df.T, pct_df.T
         names = names[::-1]
-    z_df, pct_df = z_df.reset_index(names=names[1]), pct_df.reset_index(names=names[1])
-    z_l, pct_l = pd.melt(z_df, id_vars = names[1], value_vars=[n for n in z_df.columns if n != names[1]], var_name=names[0], value_name="z-score"), pd.melt(pct_df, id_vars = names[1], value_vars=[n for n in z_df.columns if n != names[1]], var_name=names[0], value_name="fraction")
-    f, ax = plt.subplots(figsize=figsize)
+
+    z_df  = z_df.reset_index(names=names[1])
+    pct_df = pct_df.reset_index(names=names[1])
+
+    z_l   = pd.melt(z_df,  id_vars=names[1], value_name="z-score",
+                    value_vars=[c for c in z_df.columns if c != names[1]],
+                    var_name=names[0])
+    pct_l = pd.melt(pct_df, id_vars=names[1], value_name="fraction",
+                    value_vars=[c for c in pct_df.columns if c != names[1]],
+                    var_name=names[0])
+
+    # --- figure & main axis ----------------------------------------------------
+    fig, ax = plt.subplots(figsize=figsize)
+    ax.margins(y=0.20)
     if y_right:
         ax.spines[['top', 'left']].set_visible(False)
         ax.yaxis.set_label_position("right")
         ax.yaxis.tick_right()
-        legend_bbox = (-0.3, 0.5)
+        legend_anchor = (1.02, 0.5)   # place legend just outside the axis
     else:
         ax.spines[['top', 'right']].set_visible(False)
-        legend_bbox = (1.3, 0.5)
-    scatter = ax.scatter(z_l[names[0]], z_l[names[1]], s=pct_l["fraction"]*100, c=z_l["z-score"], cmap=cmap, vmin=vmin, vmax=vmax, linewidths=0.5)
-    ax.margins(y=0.2)
-    cbar = f.colorbar(scatter, ax=ax, location="bottom", pad=0.5)
+        legend_anchor = (1.02, 0.5)
+
+    # dots ----------------------------------------------------------------------
+    scatter = ax.scatter(
+        z_l[names[0]],
+        z_l[names[1]],
+        s=pct_l["fraction"] * 100,
+        c=z_l["z-score"],
+        cmap=cmap,
+        vmin=vmin, vmax=vmax,
+        linewidths=0.5,
+    )
+
+    # --- fixed‑size colour‑bar -------------------------------------------------
+    # create a new axis *6 mm* tall, 0.4 cm below the main axis
+    divider = make_axes_locatable(ax)
+    cax     = divider.append_axes("bottom", size="6mm", pad="4mm")
+    cbar    = fig.colorbar(scatter, cax=cax, orientation="horizontal")
     cbar.outline.set_visible(False)
-    cbar.ax.set_title("z-score", pad=5)
-    size_handles, size_labels = scatter.legend_elements(prop="sizes", alpha=0.6)
-    ax.legend([plt.scatter([], [], s=s, alpha=0.6, color='gray') for s in [20, 60, 100]], 
-              ['20%', '60%', '100%'], bbox_to_anchor=legend_bbox, loc='center', title="Fraction", frameon=False)
-    plt.savefig(save, bbox_inches="tight", pad_inches=0)
+    cbar.ax.set_title("z‑score", pad=5)
+
+    # --- fixed‑size legend -----------------------------------------------------
+    frac_sizes = [20, 60, 100]
+    legend_handles = [
+        plt.Line2D([], [], marker='o', linestyle='',
+                   color='gray', alpha=0.6, markersize=(s**0.5))
+        for s in frac_sizes
+    ]
+    legend_labels = [f"{s}%" for s in frac_sizes]
+
+    # draw the legend *at the figure level* so it is excluded from tight_layout
+    legend = fig.legend(
+        legend_handles, legend_labels,
+        title="Fraction",
+        loc='center left',
+        bbox_to_anchor=legend_anchor,
+        frameon=False,
+    )
+    legend.set_in_layout(False)        # keep legend size *constant*
+    fig.tight_layout()
+
+    fig.savefig(save, bbox_inches="tight", pad_inches=0)
     return scatter
