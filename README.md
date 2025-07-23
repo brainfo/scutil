@@ -1,33 +1,50 @@
 ## Installation
 
 ```{bash}
-pip install scutil
+uv pip install git+https://github.com/brainfo/scutils.git
 ```
 
 This is for scRNAseq data analysis where
 
 ## usage
 
-for qc and low dim visualization, starting from h5ad file,
+1. for qc and low dim visualization, starting from h5ad file,
 
-as in the tests/
+    ```python
+    import scutil as su
+    import scanpy as sc
+    import json
+    su.check_workdir("../")
 
-```{py}
-import scutil as su
-import scanpy as sc
-import json
-su.check_workdir("../")
-adata = sc.read_h5ad("tests/_data/test.h5ad")
-
-with open('tests/config/params.json', 'r') as f:
+    with open('tests/config/params.json', 'r') as f:
     config = json.load(f)
 
-name = config['project_name']
-adata = sc.read_h5ad(f"tests/_data/{name}.h5ad")
-su.filter_adata(adata, **config['filter_params'])
-su.norm_hvg(adata, name, n_top_genes=1000)
-su.pca(adata, name, 30, pearson=False)
-su.tsne_and_umap(adata, name, n_comps=10, pearson=False, key='celltype')
+    name = config['project_name']
+    adata = sc.read_h5ad(f"tests/_data/{name}.h5ad")
+    su.filter_adata(adata, **config['filter_params'])
+    su.norm_hvg(adata, name, n_top_genes=1000)
+    su.pca(adata, name, 30, pearson=False)
+    su.tsne_and_umap(adata, name, n_comps=10, pearson=False, key='celltype')
 
-su.write_adata(adata, f'tests/_data/{name}_qc_vis.h5ad')
-```
+    su.write_adata(adata, f'tests/_data/{name}_qc_vis.h5ad')
+    ```
+
+2. for dot plots with z-score (color) while keep count for pct (size)
+
+    ```python
+    from scutil.dotplot_utils import custom_deg_dotplot
+    genes = ["EGFR", "ERBB2", "IGF1R"]
+    custom_deg_dotplot(
+    adata,
+    genes=genes,
+    groupby="group",
+    layer="log_norm",
+    max_value=10,        # clip absolute z-score to ±10
+    y_right=False,  # put gene names on the right
+    swap_axes=True,
+    figsize= [7.09/6, 6.69/8],
+    vmin = -1,
+    vmax=1,
+    save = "figures/DEGs/ccc_dots/stb4hb_dotplot.pdf"
+    )
+    ```
