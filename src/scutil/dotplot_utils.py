@@ -98,10 +98,10 @@ def custom_deg_dotplot(
         ax.spines[['top', 'left']].set_visible(False)
         ax.yaxis.set_label_position("right")
         ax.yaxis.tick_right()
-        legend_anchor = (1.02, 0.5)   # place legend just outside the axis
+        legend_bbox = (-0.05, 0.02)   # place legend just outside the axis
     else:
         ax.spines[['top', 'right']].set_visible(False)
-        legend_anchor = (1.02, 0.5)
+        legend_bbox = (1.05, 0.02)
 
     # dots ----------------------------------------------------------------------
     scatter = ax.scatter(
@@ -135,7 +135,7 @@ def custom_deg_dotplot(
         legend_handles, legend_labels,
         title="Fraction",
         loc='center left',
-        bbox_to_anchor=legend_anchor,
+        bbox_to_anchor=legend_bbox,
         frameon=False,
     )
     legend.set_in_layout(False)        # keep legend size *constant*
