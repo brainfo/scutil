@@ -117,7 +117,7 @@ def custom_deg_dotplot(
     # --- fixed‑size colour‑bar -------------------------------------------------
     # create a new axis *6 mm* tall, 0.4 cm below the main axis
     divider = make_axes_locatable(ax)
-    cax     = divider.append_axes("bottom", size="6mm", pad="4mm")
+    cax     = divider.append_axes("bottom", size=0.3, pad=0.2)
     cbar    = fig.colorbar(scatter, cax=cax, orientation="horizontal")
     cbar.outline.set_visible(False)
     cbar.ax.set_title("z‑score", pad=5)
