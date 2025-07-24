@@ -93,6 +93,7 @@ def custom_deg_dotplot(
 
     # --- figure & main axis ----------------------------------------------------
     fig, ax = plt.subplots(figsize=figsize)
+    ax.margins(x=0.20)
     ax.margins(y=0.20)
     if y_right:
         ax.spines[['top', 'left']].set_visible(False)
