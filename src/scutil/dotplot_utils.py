@@ -76,6 +76,9 @@ def custom_deg_dotplot(
     mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
     z_df          = _zscore(mean_df, max_value)
 
+    n_genes = len(genes)
+    n_groups = len(mean_df.index)
+
     names = ("genes", "group")
     if swap_axes:
         z_df, pct_df = z_df.T, pct_df.T
@@ -118,11 +121,15 @@ def custom_deg_dotplot(
         linewidths=0.5,
     )
 
-    if not swap_axes:
-        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
-        ax.margins(x=0.1, y=0.2)
+    # Set absolute margins
+    if swap_axes:
+        # x = groups, y = genes
+        ax.set_xlim(-0.5, n_groups - 0.5)
+        ax.set_ylim(-0.5, n_genes - 0.5)
     else:
-        ax.margins(x=0.2, y=0.1)
+        # x = genes, y = groups
+        ax.set_xlim(-0.5, n_genes - 0.5)
+        ax.set_ylim(-0.5, n_groups - 0.5)
 
     # --- colour-bar ------------------------------------------------------------
     cax = fig.add_subplot(gs[1, 0])
