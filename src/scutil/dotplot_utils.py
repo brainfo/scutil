@@ -131,6 +131,8 @@ def custom_deg_dotplot(
         ax.set_xlim(-0.5, n_genes - 0.5)
         ax.set_ylim(-0.5, n_groups - 0.5)
 
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+
     # --- colour-bar ------------------------------------------------------------
     cax = fig.add_subplot(gs[1, 0])
     cbar = fig.colorbar(scatter, cax=cax, orientation="horizontal")
