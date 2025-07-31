@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import matplotlib.pyplot as plt
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 
 __all__ = ["custom_deg_dotplot"]
 
@@ -92,17 +92,22 @@ def custom_deg_dotplot(
                     var_name=names[0])
 
     # --- figure & main axis ----------------------------------------------------
-    fig, ax = plt.subplots(figsize=figsize)
+    fig = plt.figure(figsize=figsize)
+    gs = fig.add_gridspec(
+        2, 2, 
+        height_ratios=[1, 0.05], width_ratios=[0.8, 0.2], 
+        hspace=0.3, wspace=0.1, bottom=0.2
+    )
+    ax = fig.add_subplot(gs[0, :])
+
     ax.margins(x=0.20)
     ax.margins(y=0.20)
     if y_right:
         ax.spines[['top', 'left']].set_visible(False)
         ax.yaxis.set_label_position("right")
         ax.yaxis.tick_right()
-        legend_bbox = (-0.05, 0.02)   # place legend just outside the axis
     else:
         ax.spines[['top', 'right']].set_visible(False)
-        legend_bbox = (1.05, 0.02)
 
     # dots ----------------------------------------------------------------------
     scatter = ax.scatter(
@@ -115,14 +120,19 @@ def custom_deg_dotplot(
         linewidths=0.5,
     )
 
-    # --- fixed‑size colour‑bar -------------------------------------------------
-    divider = make_axes_locatable(ax)
-    cax     = divider.append_axes("bottom", size=0.1, pad=0.5)
-    cbar    = fig.colorbar(scatter, cax=cax, orientation="horizontal")
+    if not swap_axes:
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+
+    # --- colour-bar ------------------------------------------------------------
+    cax = fig.add_subplot(gs[1, 0])
+    cbar = fig.colorbar(scatter, cax=cax, orientation="horizontal")
     cbar.outline.set_visible(False)
     cbar.ax.set_title("z‑score", pad=5)
 
-    # --- fixed‑size legend -----------------------------------------------------
+    # --- legend ----------------------------------------------------------------
+    lax = fig.add_subplot(gs[1, 1])
+    lax.axis('off')
+
     frac_sizes = [20, 60, 100]
     legend_handles = [
         plt.Line2D([], [], marker='o', linestyle='',
@@ -131,15 +141,12 @@ def custom_deg_dotplot(
     ]
     legend_labels = [f"{s}%" for s in frac_sizes]
 
-    # draw the legend *at the figure level* so it is excluded from tight_layout
-    legend = fig.legend(
+    lax.legend(
         legend_handles, legend_labels,
         title="Fraction",
-        loc='center left',
-        bbox_to_anchor=legend_bbox,
+        loc='center',
         frameon=False,
     )
-    legend.set_in_layout(False)        # keep legend size *constant*
 
-    fig.savefig(save, bbox_inches="tight", bbox_extra_artists=[legend], pad_inches=0)
+    fig.savefig(save, bbox_inches="tight", pad_inches=0.1)
     return scatter
