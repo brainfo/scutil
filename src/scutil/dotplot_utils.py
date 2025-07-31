@@ -100,8 +100,8 @@ def custom_deg_dotplot(
     )
     ax = fig.add_subplot(gs[0, :])
 
-    x_margin = 0.10 if not swap_axes else 0.20
-    ax.margins(x=x_margin, y=0.20)
+    x_margin = 0.05 if not swap_axes else 0.20
+    ax.margins(x=x_margin, y=0.30)
 
     if y_right:
         ax.spines[['top', 'left']].set_visible(False)
