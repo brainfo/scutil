@@ -99,7 +99,7 @@ def custom_deg_dotplot(
     gs = fig.add_gridspec(
         2, 2, 
         height_ratios=[1, 0.05], width_ratios=[0.8, 0.2], 
-        hspace=2.5, wspace=0.1, bottom=0.2
+        hspace=4, wspace=0.1, bottom=0.2
     )
     ax = fig.add_subplot(gs[0, :])
 
