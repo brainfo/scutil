@@ -96,15 +96,13 @@ def custom_deg_dotplot(
     gs = fig.add_gridspec(
         2, 2, 
         height_ratios=[1, 0.05], width_ratios=[0.8, 0.2], 
-        hspace=2.5, wspace=0.1, bottom=0.2
+        hspace=4.0, wspace=0.1, bottom=0.2
     )
     ax = fig.add_subplot(gs[0, :])
 
-    if not swap_axes:
-        ax.margins(x=0.10)
-    else:
-        ax.margins(x=0.20)
-    ax.margins(y=0.20)
+    x_margin = 0.10 if not swap_axes else 0.20
+    ax.margins(x=x_margin, y=0.20)
+
     if y_right:
         ax.spines[['top', 'left']].set_visible(False)
         ax.yaxis.set_label_position("right")
