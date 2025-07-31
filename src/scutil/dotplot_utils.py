@@ -100,9 +100,6 @@ def custom_deg_dotplot(
     )
     ax = fig.add_subplot(gs[0, :])
 
-    x_margin = 0.05 if not swap_axes else 0.20
-    ax.margins(x=x_margin, y=0.30)
-
     if y_right:
         ax.spines[['top', 'left']].set_visible(False)
         ax.yaxis.set_label_position("right")
@@ -123,6 +120,9 @@ def custom_deg_dotplot(
 
     if not swap_axes:
         plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+        ax.margins(x=0.1, y=0.2)
+    else:
+        ax.margins(x=0.2, y=0.1)
 
     # --- colour-bar ------------------------------------------------------------
     cax = fig.add_subplot(gs[1, 0])
