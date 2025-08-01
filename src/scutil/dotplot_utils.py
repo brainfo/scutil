@@ -98,7 +98,7 @@ def custom_deg_dotplot(
     fig = plt.figure(figsize=figsize)
     gs = fig.add_gridspec(
         2, 2, 
-        height_ratios=[1, 0.05], width_ratios=[0.8, 0.2], 
+        height_ratios=[1, 0.05], width_ratios=[0.5, 0.5], 
         hspace=4, wspace=0.1, bottom=0.2
     )
     ax = fig.add_subplot(gs[0, :])
@@ -156,6 +156,11 @@ def custom_deg_dotplot(
         title="Fraction",
         loc='center',
         frameon=False,
+        ncols=len(legend_handles),
+        handletextpad=0.1,
+        columnspacing=1,
+        # Aligns the legend label with the center of the marker
+        label_verticalalignment="center",
     )
 
     fig.savefig(save, bbox_inches="tight", pad_inches=0.1)
