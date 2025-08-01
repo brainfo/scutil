@@ -151,7 +151,7 @@ def custom_deg_dotplot(
     ]
     legend_labels = [f"{s}%" for s in frac_sizes]
 
-    lax.legend(
+    legend = lax.legend(
         legend_handles, legend_labels,
         title="Fraction",
         loc='center',
@@ -159,9 +159,10 @@ def custom_deg_dotplot(
         ncols=len(legend_handles),
         handletextpad=0.1,
         columnspacing=1,
-        # Aligns the legend label with the center of the marker
-        label_verticalalignment="center",
     )
+    # Aligns the legend label with the center of the marker
+    for t in legend.get_texts():
+        t.set_va('center')
 
     fig.savefig(save, bbox_inches="tight", pad_inches=0.1)
     return scatter
