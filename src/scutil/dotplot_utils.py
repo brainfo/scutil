@@ -164,5 +164,5 @@ def custom_deg_dotplot(
     for t in legend.get_texts():
         t.set_va('center')
 
-    fig.savefig(save, bbox_inches="tight", pad_inches=0.3)
+    fig.savefig(save, bbox_inches="tight", pad_inches=0.5)
     return scatter
