@@ -97,9 +97,9 @@ def custom_deg_dotplot(
     # --- figure & main axis ----------------------------------------------------
     fig = plt.figure(figsize=figsize)
     gs = fig.add_gridspec(
-        2, 2, 
-        height_ratios=[1, 0.05], width_ratios=[0.5, 0.5], 
-        hspace=2.5, wspace=0.1, bottom=0.2
+        2, 2,
+        height_ratios=[1, 0.05], width_ratios=[0.5, 0.5],
+        wspace=0.1, bottom=0.2
     )
     ax = fig.add_subplot(gs[0, :])
 
@@ -164,5 +164,6 @@ def custom_deg_dotplot(
     for t in legend.get_texts():
         t.set_va('center')
 
-    fig.savefig(save, bbox_inches="tight", pad_inches=0.1)
+    fig.tight_layout(h_pad=1.0)
+    fig.savefig(save, pad_inches=0.1)
     return scatter
