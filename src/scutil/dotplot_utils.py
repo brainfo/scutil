@@ -95,13 +95,13 @@ def custom_deg_dotplot(
                     var_name=names[0])
 
     # --- figure & main axis ----------------------------------------------------
-    fig = plt.figure(figsize=figsize, constrained_layout=True)
-    gs = fig.add_gridspec(
-        2, 2,
-        height_ratios=[1, 0.05], width_ratios=[0.5, 0.5],
-        bottom=0.2
-    )
-    ax = fig.add_subplot(gs[0, :])
+    fig = plt.figure(figsize=figsize)
+    
+    # Define absolute positions for axes as fractions of the figure size
+    # [left, bottom, width, height]
+    ax = fig.add_axes([0.1, 0.3, 0.8, 0.6])
+    cax = fig.add_axes([0.1, 0.1, 0.35, 0.05])
+    lax = fig.add_axes([0.55, 0.1, 0.35, 0.05])
 
     if y_right:
         ax.spines[['top', 'left']].set_visible(False)
@@ -133,14 +133,11 @@ def custom_deg_dotplot(
 
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
-    # --- colour-bar ------------------------------------------------------------
-    cax = fig.add_subplot(gs[1, 0])
     cbar = fig.colorbar(scatter, cax=cax, orientation="horizontal")
     cbar.outline.set_visible(False)
     cbar.ax.set_title("z‑score", pad=5)
 
     # --- legend ----------------------------------------------------------------
-    lax = fig.add_subplot(gs[1, 1])
     lax.axis('off')
 
     frac_sizes = [20, 60, 100]
@@ -164,5 +161,5 @@ def custom_deg_dotplot(
     for t in legend.get_texts():
         t.set_va('center')
 
-    fig.savefig(save, bbox_inches="tight", pad_inches=0.5)
+    fig.savefig(save, bbox_inches="tight", pad_inches=0.1)
     return scatter
