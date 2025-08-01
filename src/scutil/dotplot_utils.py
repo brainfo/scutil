@@ -99,9 +99,9 @@ def custom_deg_dotplot(
     
     # Define absolute positions for axes as fractions of the figure size
     # [left, bottom, width, height]
-    ax = fig.add_axes([0.1, 0.3, 0.8, 0.6])
-    cax = fig.add_axes([0.1, 0.1, 0.35, 0.05])
-    lax = fig.add_axes([0.55, 0.1, 0.35, 0.05])
+    ax = fig.add_axes([0.1, 0.35, 0.8, 0.55])
+    cax = fig.add_axes([0.1, 0.1, 0.4, 0.05])
+    lax = fig.add_axes([0.5, 0.1, 0.4, 0.05])
 
     if y_right:
         ax.spines[['top', 'left']].set_visible(False)
