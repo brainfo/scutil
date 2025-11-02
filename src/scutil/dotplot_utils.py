@@ -10,9 +10,10 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import matplotlib.pyplot as plt
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
-__all__ = ["custom_deg_dotplot"]
+__all__ = ["custom_deg_dotplot", "aggregate_expression"]
 
 ###############################################################################
 # Helper functions
@@ -23,14 +24,28 @@ def _group_sizes(adata: sc.AnnData, groupby: str, order: Sequence[str]) -> np.nd
     return adata.obs[groupby].value_counts().reindex(order).fillna(0).to_numpy(int)[:, None]
 
 
-def _aggregate_expression(
+
+
+def _zscore(df: pd.DataFrame, max_value: float | None) -> pd.DataFrame:
+    z = (df - df.mean(0)) / df.std(0).replace(0, np.nan)
+    return z.clip(-max_value, max_value) if max_value else z
+
+###############################################################################
+# Public API
+###############################################################################
+
+def aggregate_expression(
     adata: sc.AnnData,
     genes: Sequence[str],
     groupby: str,
     *,
     layer: str | None = None,
+    save_merged: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """Mean expression and fraction‑expressed for each group × gene."""
+    """compute mean and fraction‑expressed per group × gene.
+
+    Optionally writes a long-form merged table with columns [groupby, gene, mean, fraction].
+    """
     # Mean expression
     agg_mean = sc.get.aggregate(adata[:, genes], by=groupby, layer=layer, func="mean")
     mean_arr = agg_mean.X if agg_mean.X is not None else agg_mean.layers["mean"]
@@ -47,16 +62,20 @@ def _aggregate_expression(
              else _group_sizes(adata, groupby, mean_df.index))
 
     pct_df = pd.DataFrame(cnt_arr / n_obs, index=mean_df.index, columns=mean_df.columns)
+    # Optionally write a single long-form merged table with group labels
+    if save_merged:
+        mean_long = (
+            mean_df.reset_index(names=groupby)
+                   .melt(id_vars=[groupby], var_name="gene", value_name="mean")
+        )
+        pct_long = (
+            pct_df.reset_index(names=groupby)
+                  .melt(id_vars=[groupby], var_name="gene", value_name="fraction")
+        )
+        merged_long = mean_long.merge(pct_long, on=[groupby, "gene"], how="outer")
+        sep = "\t" if str(save_merged).lower().endswith((".tsv", ".tab", ".txt")) else ","
+        merged_long.to_csv(save_merged, index=False, sep=sep)
     return mean_df, pct_df
-
-
-def _zscore(df: pd.DataFrame, max_value: float | None) -> pd.DataFrame:
-    z = (df - df.mean(0)) / df.std(0).replace(0, np.nan)
-    return z.clip(-max_value, max_value) if max_value else z
-
-###############################################################################
-# Public API
-###############################################################################
 
 def custom_deg_dotplot(
     adata: sc.AnnData,
@@ -71,9 +90,12 @@ def custom_deg_dotplot(
     y_right: bool = False,
     vmin: float | None = None,
     vmax: float | None = None,
+    save_table: str | None = None,
 ) -> plt.collections.PathCollection:
     # --- data prep (unchanged) -------------------------------------------------
-    mean_df, pct_df = _aggregate_expression(adata, genes, groupby, layer=layer)
+    mean_df, pct_df = aggregate_expression(
+        adata, genes, groupby, layer=layer, save_merged=save_table
+    )
     z_df          = _zscore(mean_df, max_value)
 
     n_genes = len(genes)
@@ -95,22 +117,33 @@ def custom_deg_dotplot(
                     var_name=names[0])
 
     # --- figure & main axis ----------------------------------------------------
-    fig = plt.figure(figsize=figsize)
-    
-    # Define absolute positions for axes as fractions of the figure size
-    # [left, bottom, width, height]
-    ax = fig.add_axes([0.1, 0.35, 0.8, 0.55])
-    cax = fig.add_axes([0.1, 0.1, 0.4, 0.05])
-    lax = fig.add_axes([0.5, 0.1, 0.4, 0.05])
-
-    if y_right:
-        ax.spines[['top', 'left']].set_visible(False)
-        ax.yaxis.set_label_position("right")
-        ax.yaxis.tick_right()
+    if swap_axes:
+        # Use alternate layout when swapping axes
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.margins(y=0.20)
+        if y_right:
+            ax.spines[['top', 'left']].set_visible(False)
+            ax.yaxis.set_label_position("right")
+            ax.yaxis.tick_right()
+            legend_bbox = (-0.05, 0.02)
+        else:
+            ax.spines[['top', 'right']].set_visible(False)
+            legend_bbox = (1.05, 0.02)
     else:
-        ax.spines[['top', 'right']].set_visible(False)
+        fig = plt.figure(figsize=figsize)
+        # Define absolute positions for axes as fractions of the figure size
+        # [left, bottom, width, height]
+        ax = fig.add_axes([0.1, 0.35, 0.8, 0.55])
+        cax = fig.add_axes([0.1, 0.1, 0.4, 0.05])
+        lax = fig.add_axes([0.5, 0.1, 0.4, 0.05])
+        if y_right:
+            ax.spines[['top', 'left']].set_visible(False)
+            ax.yaxis.set_label_position("right")
+            ax.yaxis.tick_right()
+        else:
+            ax.spines[['top', 'right']].set_visible(False)
 
-    # dots ----------------------------------------------------------------------
+    # dots (shared) -------------------------------------------------------------
     scatter = ax.scatter(
         z_l[names[0]],
         z_l[names[1]],
@@ -120,26 +153,9 @@ def custom_deg_dotplot(
         vmin=vmin, vmax=vmax,
         linewidths=0.5,
     )
-
-    # Set absolute margins
-    if swap_axes:
-        # x = groups, y = genes
-        ax.set_xlim(-0.5, n_groups - 0.5)
-        ax.set_ylim(-0.5, n_genes - 0.5)
-    else:
-        # x = genes, y = groups
-        ax.set_xlim(-0.5, n_genes - 0.5)
-        ax.set_ylim(-0.5, n_groups - 0.5)
-
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
 
-    cbar = fig.colorbar(scatter, cax=cax, orientation="horizontal")
-    cbar.outline.set_visible(False)
-    cbar.ax.set_title("z‑score", pad=5)
-
-    # --- legend ----------------------------------------------------------------
-    lax.axis('off')
-
+    # Legend handles/labels (shared) -------------------------------------------
     frac_sizes = [20, 60, 100]
     legend_handles = [
         plt.Line2D([], [], marker='o', linestyle='',
@@ -148,18 +164,48 @@ def custom_deg_dotplot(
     ]
     legend_labels = [f"{s}%" for s in frac_sizes]
 
-    legend = lax.legend(
-        legend_handles, legend_labels,
-        title="Fraction",
-        loc='center',
-        frameon=False,
-        ncols=len(legend_handles),
-        handletextpad=0.1,
-        columnspacing=1,
-    )
-    # Aligns the legend label with the center of the marker
-    for t in legend.get_texts():
-        t.set_va('center')
+    if swap_axes:
+        # fixed-size colour bar -------------------------------------------------
+        divider = make_axes_locatable(ax)
+        cax = divider.append_axes("bottom", size=0.1, pad=0.5)
+        cbar = fig.colorbar(scatter, cax=cax, orientation="horizontal")
+        cbar.outline.set_visible(False)
+        cbar.ax.set_title("z‑score", pad=5)
 
-    fig.savefig(save, bbox_inches="tight", pad_inches=0.1)
+        # fixed-size legend -----------------------------------------------------
+        legend = fig.legend(
+            legend_handles, legend_labels,
+            title="Fraction",
+            loc='center left',
+            bbox_to_anchor=legend_bbox,
+            frameon=False,
+        )
+        legend.set_in_layout(False)
+
+        fig.savefig(save, bbox_inches="tight", bbox_extra_artists=[legend], pad_inches=0)
+    else:
+        # Set absolute margins (non-swapped)
+        ax.set_xlim(-0.5, n_genes - 0.5)
+        ax.set_ylim(-0.5, n_groups - 0.5)
+
+        cbar = fig.colorbar(scatter, cax=cax, orientation="horizontal")
+        cbar.outline.set_visible(False)
+        cbar.ax.set_title("z‑score", pad=5)
+
+        # legend on an auxiliary axis ------------------------------------------
+        lax.axis('off')
+        legend = lax.legend(
+            legend_handles, legend_labels,
+            title="Fraction",
+            loc='center',
+            frameon=False,
+            ncols=len(legend_handles),
+            handletextpad=0.1,
+            columnspacing=1,
+        )
+        for t in legend.get_texts():
+            t.set_va('center')
+
+        fig.savefig(save, bbox_inches="tight", pad_inches=0.1)
+
     return scatter
