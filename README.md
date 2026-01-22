@@ -21,6 +21,7 @@ This is for scRNAseq data analysis where
 
     name = config['project_name']
     adata = sc.read_h5ad(f"tests/_data/{name}.h5ad")
+    su.qc(adata, name, config['workdir'],order=['PLA23', 'PLA15', 'PLA16', 'PLA27'], batch_key = 'sample')
     su.filter_adata(adata, **config['filter_params'])
     su.norm_hvg(adata, name, n_top_genes=1000)
     su.pca(adata, name, 30, pearson=False)
