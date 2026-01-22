@@ -188,7 +188,7 @@ def doublet_plot(basedir, sample_name, sample):
     plt.savefig(os.path.join(basedir, f'figures/doublet_{sample_name}_score.pdf'), bbox_inches='tight')
 
 ## qc
-def qc(data, name, basedir, flags={"mt": r"^MT-", "ribo": r"^RP[LS]", "hb": r"^HB"}, order=None, batch_key=None):
+def qc(data, name, basedir, scrublet, flags={"mt": r"^MT-", "ribo": r"^RP[LS]", "hb": r"^HB"}, order=None, batch_key=None):
     """\
         Parameters
         -------
@@ -199,6 +199,10 @@ def qc(data, name, basedir, flags={"mt": r"^MT-", "ribo": r"^RP[LS]", "hb": r"^H
         batch_key
             batch key if there's any
     """
+    if scrublet:
+        sc.pp.scrublet(data, batch_key=batch_key)
+        scrublet_plot(basedir, name, data)
+        data = data[~data.obs["predicted_doublet"]]
     qc_vars = []
     for flag, pattern in flags.items():
         if flag not in data.var.columns and pattern:
