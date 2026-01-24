@@ -4,13 +4,13 @@ import numpy as np
 import scanpy as sc
 import anndata
 import re
-import seaborn as sns
-import matplotlib
 import scipy.sparse as sp
 from typing import Dict
 import logging
 import os
 import zarr
+import tables
+import dask.array as da
 from anndata.experimental import read_dispatched, read_elem
 from collections import defaultdict
 
@@ -188,7 +188,7 @@ def doublet_plot(basedir, sample_name, sample):
     plt.savefig(os.path.join(basedir, f'figures/doublet_{sample_name}_score.pdf'), bbox_inches='tight')
 
 ## qc
-def qc(data, name, basedir, scrublet, flags={"mt": r"^MT-", "ribo": r"^RP[LS]", "hb": r"^HB"}, order=None, batch_key=None):
+def qc(data, name, basedir, flags={"mt": r"^MT-", "ribo": r"^RP[LS]", "hb": r"^HB"}, scrublet=False, order=None, batch_key=None):
     """\
         Parameters
         -------
@@ -200,9 +200,9 @@ def qc(data, name, basedir, scrublet, flags={"mt": r"^MT-", "ribo": r"^RP[LS]", 
             batch key if there's any
     """
     if scrublet:
-        sc.pp.scrublet(data, batch_key=batch_key)
-        scrublet_plot(basedir, name, data)
-        data = data[~data.obs["predicted_doublet"]]
+        sc.pp.scrublet(data, batch_key=batch_key) ## it actually separate batch when i read the source code
+        for batch in set(data.obs[batch_key]):
+            doublet_plot(basedir, batch, data[data.obs[batch_key] == batch])
     qc_vars = []
     for flag, pattern in flags.items():
         if flag not in data.var.columns and pattern:
@@ -235,7 +235,9 @@ def qc(data, name, basedir, scrublet, flags={"mt": r"^MT-", "ribo": r"^RP[LS]", 
     ax3_dict = sc.pl.scatter(data, x='total_counts', y='pct_counts_ribo', ax=ax2, show=False, color=batch_key)
     plt.savefig(os.path.join(basedir, f'figures/{name}_mt_tc_ribo.pdf'),bbox_inches='tight')         
     
-def filter_adata(adata, min_genes, percent, max_genes, percent_mt=1, filter_mt=True, min_counts=0):
+def filter_adata(adata, min_genes, percent, max_genes, percent_mt=1, filter_mt=True, min_counts=0, scrublet=False):
+    if scrublet:
+        adata = adata[~adata.obs["predicted_doublet"]]
     sc.pp.filter_cells(adata, min_counts=min_counts)
     sc.pp.filter_cells(adata, min_genes=min_genes)
     sc.pp.filter_cells(adata, max_genes=max_genes)

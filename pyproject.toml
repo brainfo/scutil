@@ -19,6 +19,9 @@ dependencies = [
     "scanpy>=1.9.8",
     "seaborn>=0.13.2",
     "zarr>=2.16.1",
+    "tables",
+    "dask",
+    "scikit-image",
 ]
 [tool.hatch.build.targets.wheel]
 packages = ["src/scutil"]
