@@ -23,13 +23,6 @@ def _group_sizes(adata: sc.AnnData, groupby: str, order: Sequence[str]) -> np.nd
     """Cell counts per group in *order* (shape = G×1)."""
     return adata.obs[groupby].value_counts().reindex(order).fillna(0).to_numpy(int)[:, None]
 
-
-
-
-def _zscore(df: pd.DataFrame, max_value: float | None) -> pd.DataFrame:
-    z = (df - df.mean(0)) / df.std(0).replace(0, np.nan)
-    return z.clip(-max_value, max_value) if max_value else z
-
 ###############################################################################
 # Public API
 ###############################################################################
@@ -40,14 +33,23 @@ def aggregate_expression(
     groupby: str,
     *,
     layer: str | None = None,
+    zero_center: bool = False,
     save_merged: str | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     """compute mean and fraction‑expressed per group × gene.
 
-    Optionally writes a long-form merged table with columns [groupby, gene, mean, fraction].
+    Parameters
+    ----------
+    zero_center
+        If True, full z-scoring (mean=0, std=1).  Works well with >=3 groups
+        but collapses to -1/+1 with exactly 2 groups.
+        If False (default), only divide by std so genes are comparable but
+        group means keep their relative magnitude.
     """
-    # Mean expression
-    agg_mean = sc.get.aggregate(adata[:, genes], by=groupby, layer=layer, func="mean")
+    adata_scaled = sc.pp.scale(
+        adata[:, genes], copy=True, zero_center=zero_center, max_value=10, layer=layer,
+    )
+    agg_mean = sc.get.aggregate(adata_scaled, by=groupby, layer=layer, func="mean")
     mean_arr = agg_mean.X if agg_mean.X is not None else agg_mean.layers["mean"]
     mean_df = pd.DataFrame(mean_arr, index=agg_mean.obs_names, columns=agg_mean.var_names)
 
@@ -84,6 +86,7 @@ def custom_deg_dotplot(
     figsize: tuple,
     save: str,
     layer: str | None = "log_norm",
+    zero_center: bool = False,
     max_value: float | None = None,
     cmap: str | Any = "RdBu_r",
     swap_axes: bool = False,
@@ -93,13 +96,13 @@ def custom_deg_dotplot(
     save_table: str | None = None,
 ) -> plt.collections.PathCollection:
     # --- data prep (unchanged) -------------------------------------------------
-    mean_df, pct_df = aggregate_expression(
-        adata, genes, groupby, layer=layer, save_merged=save_table
+    z_df, pct_df = aggregate_expression(
+        adata, genes, groupby, layer=layer, zero_center=zero_center,
+        save_merged=save_table,
     )
-    z_df          = _zscore(mean_df, max_value)
 
     n_genes = len(genes)
-    n_groups = len(mean_df.index)
+    n_groups = len(z_df.index)
 
     names = ("genes", "group")
     if swap_axes:
