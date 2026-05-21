@@ -93,6 +93,7 @@ def custom_deg_dotplot(
     y_right: bool = False,
     vmin: float | None = None,
     vmax: float | None = None,
+    norm: plt.Normalize | None = None,
     save_table: str | None = None,
 ) -> plt.collections.PathCollection:
     # --- data prep (unchanged) -------------------------------------------------
@@ -146,6 +147,8 @@ def custom_deg_dotplot(
         else:
             ax.spines[['top', 'right']].set_visible(False)
 
+    cbar_title = "z-score" if zero_center else "Scaled mean\nexpression"
+
     # dots (shared) -------------------------------------------------------------
     scatter = ax.scatter(
         z_l[names[0]],
@@ -153,7 +156,7 @@ def custom_deg_dotplot(
         s=pct_l["fraction"] * 100,
         c=z_l["z-score"],
         cmap=cmap,
-        vmin=vmin, vmax=vmax,
+        norm=norm, vmin=vmin, vmax=vmax,
         linewidths=0.5,
     )
     plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
@@ -173,7 +176,7 @@ def custom_deg_dotplot(
         cax = divider.append_axes("bottom", size=0.1, pad=0.5)
         cbar = fig.colorbar(scatter, cax=cax, orientation="horizontal")
         cbar.outline.set_visible(False)
-        cbar.ax.set_title("z‑score", pad=5)
+        cbar.ax.set_title(cbar_title, pad=5)
 
         # fixed-size legend -----------------------------------------------------
         legend = fig.legend(
@@ -193,7 +196,7 @@ def custom_deg_dotplot(
 
         cbar = fig.colorbar(scatter, cax=cax, orientation="horizontal")
         cbar.outline.set_visible(False)
-        cbar.ax.set_title("z‑score", pad=5)
+        cbar.ax.set_title(cbar_title, pad=5)
 
         # legend on an auxiliary axis ------------------------------------------
         lax.axis('off')
