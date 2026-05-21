@@ -177,16 +177,6 @@ def read_dask(store):
 
     return adata
 
-## doublet
-def doublet_plot(basedir, sample_name, sample):
-    doublet_score = sample.obs['doublet_score']
-    sim_scores = sample.uns['scrublet']['doublet_scores_sim']
-    plt.figure()
-    n, bins, patches = plt.hist(sim_scores, 50, density=True, facecolor='g', alpha=0.75)
-    n, bins, patches = plt.hist(doublet_score, 50, density=True, facecolor='b', alpha=0.75)
-    plt.axvline(x=0.12)
-    plt.savefig(os.path.join(basedir, f'figures/doublet_{sample_name}_score.pdf'), bbox_inches='tight')
-
 ## qc
 def qc(data, name, basedir, flags={"mt": r"^MT-", "ribo": r"^RP[LS]", "hb": r"^HB"}, scrublet=False, order=None, batch_key=None):
     """\
@@ -200,9 +190,10 @@ def qc(data, name, basedir, flags={"mt": r"^MT-", "ribo": r"^RP[LS]", "hb": r"^H
             batch key if there's any
     """
     if scrublet:
-        sc.pp.scrublet(data, batch_key=batch_key) ## it actually separate batch when i read the source code
-        for batch in set(data.obs[batch_key]):
-            doublet_plot(basedir, batch, data[data.obs[batch_key] == batch])
+        sc.pp.scrublet(data, batch_key=batch_key) 
+        for batch in set(data.obs[batch_key]):  
+            sc.pl.scrublet_score_distribution(data[data.obs[batch_key] == batch], save=f'{basedir}/figures/doublet_{batch}_score.pdf', show=False)
+        
     qc_vars = []
     for flag, pattern in flags.items():
         if flag not in data.var.columns and pattern:
